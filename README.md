@@ -283,6 +283,10 @@ Summary: 1/1 passed, 0 failed, score 100%
 
 The test runner is deliberately simple. It is intended to catch obvious regressions in routing, handoff and tool-call expectations before a spec reaches a live agent runtime.
 
+## CI governance gate
+
+An example GitHub Actions workflow is available at `examples/github-actions/agentspec-check.yml`. It validates, lints and tests every tracked `.agentspec.yaml` or `.agentspec.yml` file and fails the pipeline on errors. See the docs site page “CI governance gates” for guidance on using AgentSpec checks before merging instruction changes.
+
 ## VS Code support
 
 The `packages/vscode-extension` package recognises `.agentspec.yaml` and `.agentspec.yml` files, shows validation and lint diagnostics inline, and contributes these commands:

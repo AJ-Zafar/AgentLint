@@ -34,6 +34,7 @@ export default defineConfig({
         items: [
           { text: "Testing agent behaviour", link: "/guide/testing" },
           { text: "Diff and regression analysis", link: "/guide/diff" },
+          { text: "CI governance gates", link: "/guide/ci-governance" },
           { text: "Copilot Studio mapping", link: "/integrations/copilot-studio" }
         ]
       },
