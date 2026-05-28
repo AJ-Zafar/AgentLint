@@ -70,3 +70,7 @@ pnpm agentlint copilot-drift --spec ./agent.agentspec.yaml --solution ./solution
 `copilot-drift` compares an existing Agent Lint spec with the extracted solution structure and reports missing topics, unexpected topics, missing actions, undocumented high-risk actions and fallback or handoff gaps.
 
 These commands remain experimental and local-first. They do not call Microsoft APIs, do not require Dataverse access and do not validate official Copilot Studio export schemas.
+
+## Copilot drift scoring
+
+`agentlint copilot-drift` calculates route drift, tool drift, handoff drift, governance drift and overall behavioural drift. Reports classify drift as `aligned`, `minor drift`, `significant drift` or `critical drift`, and include actionable remediation suggestions for missing topics, unexpected topics, missing actions, undocumented high-risk actions and fallback or handoff gaps.

@@ -72,10 +72,23 @@ describe("Copilot Studio solution audit", () => {
     const drift = await analyseCopilotStudioDrift({ spec: parsed.document, solutionPath });
 
     expect(drift.summary.driftCount).toBe(3);
+    expect(drift.scores).toEqual({
+      routeDrift: 50,
+      toolDrift: 50,
+      handoffDrift: 0,
+      governanceDrift: 25,
+      overallBehaviouralDrift: 31
+    });
+    expect(drift.classification).toBe("significant drift");
     expect(drift.items).toEqual(expect.arrayContaining([
       expect.objectContaining({ type: "missing-topic", name: "connector_review" }),
       expect.objectContaining({ type: "unexpected-topic", name: "unexpected_marketing_topic" }),
       expect.objectContaining({ type: "undocumented-high-risk-action", name: "delete_environment" })
+    ]));
+    expect(drift.remediation).toEqual(expect.arrayContaining([
+      "Create or restore Copilot Studio topic connector_review, or remove the route from AgentSpec if it is no longer intended.",
+      "Review unexpected topic unexpected_marketing_topic and either document it in AgentSpec or remove it from the solution.",
+      "Document high-risk action delete_environment in AgentSpec with risk level, auth assumptions and allowed operations, or remove it from the solution."
     ]));
   });
 });

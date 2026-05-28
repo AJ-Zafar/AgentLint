@@ -425,3 +425,7 @@ pnpm agentlint coverage ./agent.agentspec.yaml --json
 ```
 
 Reports route, handoff, tool, constraint, fallback and test scenario coverage. The report includes percentage coverage, uncovered branches and recommended test scenarios.
+
+## Copilot drift scoring
+
+`agentlint copilot-drift` calculates route drift, tool drift, handoff drift, governance drift and overall behavioural drift. Reports classify drift as `aligned`, `minor drift`, `significant drift` or `critical drift`, and include actionable remediation suggestions for missing topics, unexpected topics, missing actions, undocumented high-risk actions and fallback or handoff gaps.

@@ -42,3 +42,7 @@ pnpm agentlint copilot-drift --spec ./agent.agentspec.yaml --solution ./solution
 ```
 
 `copilot-extract` emits generated Agent Lint YAML. `copilot-drift` emits a drift report comparing a spec to extracted solution structure.
+
+## Copilot drift scoring
+
+`agentlint copilot-drift` calculates route drift, tool drift, handoff drift, governance drift and overall behavioural drift. Reports classify drift as `aligned`, `minor drift`, `significant drift` or `critical drift`, and include actionable remediation suggestions for missing topics, unexpected topics, missing actions, undocumented high-risk actions and fallback or handoff gaps.

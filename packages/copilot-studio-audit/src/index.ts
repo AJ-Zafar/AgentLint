@@ -58,10 +58,15 @@ export type CopilotStudioAuditReport = {
   };
 };
 
+export type CopilotDriftClassification = "aligned" | "minor drift" | "significant drift" | "critical drift";
+
 export type CopilotStudioDriftReport = {
   experimental: true;
   solutionPath: string;
   summary: { driftCount: number; missingTopicCount: number; unexpectedTopicCount: number; missingActionCount: number; undocumentedHighRiskActionCount: number };
+  scores: { routeDrift: number; toolDrift: number; handoffDrift: number; governanceDrift: number; overallBehaviouralDrift: number };
+  classification: CopilotDriftClassification;
+  remediation: string[];
   items: Array<{ type: "missing-topic" | "unexpected-topic" | "missing-action" | "undocumented-high-risk-action" | "missing-fallback" | "test-reference-missing"; name: string; detail: string }>;
 };
 
@@ -186,7 +191,67 @@ export async function analyseCopilotStudioDrift(options: { spec: AgentSpecDocume
     ...audit.findings.missingFallbackHandoffCoverage.map((name) => ({ type: "missing-fallback" as const, name, detail: `Expected fallback or handoff coverage ${name} was not found.` })),
     ...audit.findings.testsReferencingMissingRoutesOrActions.map((test) => ({ type: "test-reference-missing" as const, name: test.testName, detail: `Test references missing routes/actions: ${[...test.missingRoutes, ...test.missingActions].join(", ")}.` }))
   ];
-  return { experimental: true, solutionPath: options.solutionPath, summary: { driftCount: items.length, missingTopicCount: audit.findings.expectedMissingTopics.length, unexpectedTopicCount: audit.findings.unexpectedTopics.length, missingActionCount: audit.findings.expectedMissingActions.length, undocumentedHighRiskActionCount: audit.findings.highRiskToolsNotDocumentedInAgentSpec.length }, items };
+  const scores = scoreDrift(options.spec, audit);
+  return {
+    experimental: true,
+    solutionPath: options.solutionPath,
+    summary: {
+      driftCount: items.length,
+      missingTopicCount: audit.findings.expectedMissingTopics.length,
+      unexpectedTopicCount: audit.findings.unexpectedTopics.length,
+      missingActionCount: audit.findings.expectedMissingActions.length,
+      undocumentedHighRiskActionCount: audit.findings.highRiskToolsNotDocumentedInAgentSpec.length
+    },
+    scores,
+    classification: classifyDrift(scores.overallBehaviouralDrift),
+    remediation: remediationForItems(items),
+    items
+  };
+}
+
+function scoreDrift(spec: AgentSpecDocument, audit: CopilotStudioAuditReport): CopilotStudioDriftReport["scores"] {
+  const expectedRoutes = Math.max(1, spec.routes.length);
+  const expectedTools = Math.max(1, spec.tools.length);
+  const expectedHandoffs = Math.max(1, spec.handoffs.length);
+  const routeDrift = pct((audit.findings.expectedMissingTopics.length + audit.findings.unexpectedTopics.length) / (expectedRoutes + audit.findings.unexpectedTopics.length));
+  const toolDrift = pct((audit.findings.expectedMissingActions.length + audit.findings.highRiskToolsNotDocumentedInAgentSpec.length) / (expectedTools + audit.findings.highRiskToolsNotDocumentedInAgentSpec.length));
+  const handoffDrift = pct(audit.findings.missingFallbackHandoffCoverage.length / expectedHandoffs);
+  const governanceSignals = [
+    audit.findings.highRiskToolsNotDocumentedInAgentSpec.length > 0,
+    audit.findings.missingFallbackHandoffCoverage.length > 0,
+    audit.findings.testsReferencingMissingRoutesOrActions.length > 0,
+    audit.extracted.authenticationAssumptions.length > 0 && spec.tools.some((tool) => !tool.requires_auth)
+  ];
+  const governanceDrift = pct(governanceSignals.filter(Boolean).length / governanceSignals.length);
+  return {
+    routeDrift,
+    toolDrift,
+    handoffDrift,
+    governanceDrift,
+    overallBehaviouralDrift: Math.round((routeDrift + toolDrift + handoffDrift + governanceDrift) / 4)
+  };
+}
+
+function pct(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value * 100)));
+}
+
+function classifyDrift(score: number): CopilotDriftClassification {
+  if (score === 0) return "aligned";
+  if (score < 20) return "minor drift";
+  if (score < 60) return "significant drift";
+  return "critical drift";
+}
+
+function remediationForItems(items: CopilotStudioDriftReport["items"]): string[] {
+  return items.map((item) => {
+    if (item.type === "missing-topic") return `Create or restore Copilot Studio topic ${item.name}, or remove the route from AgentSpec if it is no longer intended.`;
+    if (item.type === "unexpected-topic") return `Review unexpected topic ${item.name} and either document it in AgentSpec or remove it from the solution.`;
+    if (item.type === "missing-action") return `Create or restore action ${item.name}, or update AgentSpec tool expectations.`;
+    if (item.type === "undocumented-high-risk-action") return `Document high-risk action ${item.name} in AgentSpec with risk level, auth assumptions and allowed operations, or remove it from the solution.`;
+    if (item.type === "missing-fallback") return `Add fallback or handoff coverage for ${item.name} in the solution export.`;
+    return `Update tests or solution components for missing reference ${item.name}.`;
+  });
 }
 
 function compareExtractedSolution(spec: AgentSpecDocument, extracted: ExtractedCopilotStudioSolution): CopilotStudioAuditReport["findings"] {

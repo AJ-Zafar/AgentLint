@@ -622,10 +622,20 @@ function formatCopilotDrift(report: CopilotStudioDriftReport): string {
     "Copilot Studio Drift Report",
     "Status: experimental",
     `Solution: ${report.solutionPath}`,
+    `Classification: ${report.classification}`,
+    `Overall behavioural drift: ${report.scores.overallBehaviouralDrift}%`,
+    "",
+    "Scores",
+    `  - Route drift: ${report.scores.routeDrift}%`,
+    `  - Tool drift: ${report.scores.toolDrift}%`,
+    `  - Handoff drift: ${report.scores.handoffDrift}%`,
+    `  - Governance drift: ${report.scores.governanceDrift}%`,
+    "",
     `Drift items: ${report.summary.driftCount}`,
     ""
   ];
   appendFindingList(lines, "Drift", report.items.map((item) => `${item.type}: ${item.name} - ${item.detail}`));
+  appendFindingList(lines, "Remediation", report.remediation);
   return `${lines.join("\n").trimEnd()}\n`;
 }
 

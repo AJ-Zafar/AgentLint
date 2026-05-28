@@ -424,6 +424,9 @@ describe("agentspec CLI", () => {
     expect(result.exitCode).toBe(0);
     expect(parsed.command).toBe("copilot-drift");
     expect(parsed.drift.summary.driftCount).toBe(3);
+    expect(parsed.drift.scores.overallBehaviouralDrift).toBe(31);
+    expect(parsed.drift.classification).toBe("significant drift");
+    expect(parsed.drift.remediation).toEqual(expect.arrayContaining([expect.stringContaining("connector_review")]));
     expect(parsed.drift.items).toEqual(expect.arrayContaining([expect.objectContaining({ type: "missing-topic", name: "connector_review" })]));
   });
 
