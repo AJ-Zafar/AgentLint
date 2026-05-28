@@ -78,6 +78,19 @@ importers:
         specifier: workspace:*
         version: link:../spec
 
+  packages/vscode-extension:
+    dependencies:
+      '@agentspec/linter':
+        specifier: workspace:*
+        version: link:../linter
+      '@agentspec/parser':
+        specifier: workspace:*
+        version: link:../parser
+    devDependencies:
+      '@types/vscode':
+        specifier: latest
+        version: 1.120.0
+
 packages:
 
   '@emnapi/core@1.10.0':
@@ -210,6 +223,9 @@ packages:
 
   '@types/node@25.9.1':
     resolution: {integrity: sha512-xfrlY7UD5rMJk3ZVJP8BNzS28J36YJg+xp+LPXV1TdWxr8uMH5A860QNxYDGQe/ylDSgjxE52Q9VnO7p75tJxg==}
+
+  '@types/vscode@1.120.0':
+    resolution: {integrity: sha512-feaT4Rst+FkTch5zz/ZbNCxoIvo55YU80Be2kiL7OJcod4+CUYf2lUBPdIJzozNnSEMq1VRTGrWEcCGFB3fBmA==}
 
   '@vitest/expect@4.1.7':
     resolution: {integrity: sha512-1R+tw0ortHEbZDGMymm+pN7/AFQ/RkFFdtd7EN+VBpynKmLbP8A3rpEXdshBJ7+8hQ9zBJh/i1s0yKNtxAnU7w==}
@@ -618,6 +634,8 @@ snapshots:
   '@types/node@25.9.1':
     dependencies:
       undici-types: 7.24.6
+
+  '@types/vscode@1.120.0': {}
 
   '@vitest/expect@4.1.7':
     dependencies:

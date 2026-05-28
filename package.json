@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@10.11.0",
   "scripts": {
-    "build": "tsc -b packages/spec packages/parser packages/linter packages/test-runner packages/diff packages/cli",
+    "build": "tsc -b packages/spec packages/parser packages/linter packages/test-runner packages/diff packages/vscode-extension packages/cli",
     "test": "vitest run",
     "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
     "agentspec": "node packages/cli/dist/bin/agentspec.js"

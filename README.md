@@ -11,6 +11,7 @@ This project is infrastructure for instruction engineering, not a chatbot. All c
 - `@agentspec/linter` - Finds common instruction-engineering issues.
 - `@agentspec/test-runner` - Runs deterministic local test scenarios without LLM calls.
 - `@agentspec/diff` - Reports behavioral impact between AgentSpec files.
+- `agentspec-vscode` - VS Code extension for AgentSpec diagnostics and commands.
 - `@agentspec/cli` - Commander-based CLI exposing `validate`, `lint`, `test`, and `diff`.
 
 ## Commands
@@ -25,6 +26,10 @@ pnpm agentspec lint examples/customer-support.agentspec.yaml
 pnpm agentspec test examples/customer-support.agentspec.yaml
 pnpm agentspec diff examples/customer-support.agentspec.yaml examples/copilot-studio-agent.agentspec.yaml
 ```
+
+## VS Code extension
+
+`packages/vscode-extension` recognizes `.agentspec.yaml` and `.agentspec.yml` files, shows validation and lint diagnostics inline, and contributes `AgentSpec: Validate Current File` and `AgentSpec: Lint Current File` commands. It uses the existing parser and linter packages so editor behavior stays aligned with the CLI.
 
 ## Behavioral diffs
 
