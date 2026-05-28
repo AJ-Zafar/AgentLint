@@ -35,6 +35,9 @@ importers:
       '@agentspec/copilot-studio-audit':
         specifier: workspace:*
         version: link:../copilot-studio-audit
+      '@agentspec/coverage':
+        specifier: workspace:*
+        version: link:../coverage
       '@agentspec/diff':
         specifier: workspace:*
         version: link:../diff
@@ -89,6 +92,12 @@ importers:
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
+
+  packages/coverage:
+    dependencies:
+      '@agentspec/spec':
+        specifier: workspace:*
+        version: link:../spec
 
   packages/diff:
     dependencies:

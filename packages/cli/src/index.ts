@@ -5,6 +5,7 @@ import { runAgentSpecTests, type TestRunResult } from "@agentspec/test-runner";
 import { diffAgentSpecs, simulateAgentSpecDiff, type BehavioralDiffResult, type SimulatedDiffReport } from "@agentspec/diff";
 import { compileAgentSpecGraph, type GraphCompilationResult } from "@agentspec/grammar";
 import { replayScenario, type ReplayResult } from "@agentspec/replay";
+import { analyseBehaviouralCoverage, type BehaviouralCoverageReport } from "@agentspec/coverage";
 import { compileInstructionsToAgentSpec } from "@agentspec/compiler";
 import { readFile, writeFile } from "node:fs/promises";
 import { convertAgentSpecToCopilotStudioPlan } from "@agentspec/copilot-studio";
@@ -109,6 +110,19 @@ export function createCli(state: CliState, programName = "agentspec"): Command {
 
       state.exitCode = 1;
       state.stdout.push(options.json ? jsonLine(payload) : formatLintIssues(result.issues));
+    });
+
+  program
+    .command("coverage")
+    .argument("<file>", "Agent Lint YAML file")
+    .option("--json", "Emit machine-readable JSON output")
+    .description("Analyse behavioural coverage for an Agent Lint spec.")
+    .action(async (file: string, options: { json?: boolean }) => {
+      const parsed = await parseForCommand(file, state, "coverage", options.json);
+      if (!parsed) return;
+      const report = analyseBehaviouralCoverage(parsed.document);
+      const payload = { command: "coverage", file, report };
+      state.stdout.push(options.json ? jsonLine(payload) : formatCoverage(report));
     });
 
   program
@@ -488,6 +502,31 @@ export async function runCli(args: string[], programName = "agentspec"): Promise
     stdout: state.stdout.join(""),
     stderr: state.stderr.join("")
   };
+}
+
+function formatCoverage(report: BehaviouralCoverageReport): string {
+  const lines = [
+    "Agent Lint Behavioural Coverage",
+    `Overall: ${report.overall}%`,
+    "",
+    formatCoverageMetric("Route coverage", report.routeCoverage),
+    formatCoverageMetric("Handoff coverage", report.handoffCoverage),
+    formatCoverageMetric("Tool coverage", report.toolCoverage),
+    formatCoverageMetric("Constraint coverage", report.constraintCoverage),
+    formatCoverageMetric("Fallback coverage", report.fallbackCoverage),
+    formatCoverageMetric("Test scenario coverage", report.testScenarioCoverage),
+    "Uncovered branches",
+    ...formatObjects(report.uncoveredBranches),
+    "",
+    "Recommended test scenarios",
+    ...formatObjects(report.recommendedTestScenarios.map((scenario) => `${scenario.name}: ${scenario.reason}`)),
+    ""
+  ];
+  return `${lines.join("\n").trimEnd()}\n`;
+}
+
+function formatCoverageMetric(title: string, metric: { total: number; covered: number; percentage: number; uncovered: string[] }): string {
+  return `${title}: ${metric.percentage}% (${metric.covered}/${metric.total})${metric.uncovered.length ? `; uncovered: ${metric.uncovered.join(", ")}` : ""}`;
 }
 
 function formatTestRun(result: TestRunResult): string {

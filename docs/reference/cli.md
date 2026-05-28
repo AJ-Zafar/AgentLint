@@ -129,3 +129,12 @@ pnpm agentlint lint ./file.agentspec.yaml --fix --json
 Autofix can add missing fallback scaffolds, add default `risk_level: medium`, retarget undefined route targets to an existing handoff, add placeholder handoff conditions, annotate weak escalation wording and normalise YAML output.
 
 Autofix deliberately does not rewrite semantic intent. When a fix needs human judgement, Agent Lint adds explicit `TODO` or `agentlint_fixme` annotations and reports manual review warnings.
+
+## Behavioural coverage
+
+```bash
+pnpm agentlint coverage ./agent.agentspec.yaml
+pnpm agentlint coverage ./agent.agentspec.yaml --json
+```
+
+Reports route, handoff, tool, constraint, fallback and test scenario coverage. The report includes percentage coverage, uncovered branches and recommended test scenarios.

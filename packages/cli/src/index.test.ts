@@ -225,6 +225,28 @@ describe("agentspec CLI", () => {
     expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
   });
 
+
+  it("reports behavioural coverage", async () => {
+    const result = await runCli(["coverage", "examples/customer-support.agentspec.yaml"], "agentlint");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Agent Lint Behavioural Coverage");
+    expect(result.stdout).toContain("Route coverage");
+    expect(result.stdout).toContain("Recommended test scenarios");
+  });
+
+  it("emits deterministic JSON for behavioural coverage", async () => {
+    const result = await runCli(["coverage", "examples/customer-support.agentspec.yaml", "--json"], "agentlint");
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(parsed.command).toBe("coverage");
+    expect(parsed.file).toBe("examples/customer-support.agentspec.yaml");
+    expect(parsed.report.routeCoverage.percentage).toEqual(expect.any(Number));
+    expect(parsed.report.recommendedTestScenarios).toEqual(expect.any(Array));
+    expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+  });
+
   it("runs deterministic declared tests without live model calls", async () => {
     const filePath = await writeFixture("test.agentspec.yaml", validYaml);
     const result = await runCli(["test", filePath]);

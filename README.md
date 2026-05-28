@@ -415,3 +415,12 @@ Thanks to Chris Huntingford for highlighting the "HTML before VS Code" compariso
 Agent Lint does not provide deterministic control over AI systems. LLM-backed agents can still behave unexpectedly because outputs depend on model behaviour, runtime context, retrieval, tools and deployment configuration.
 
 Agent Lint is an assurance and engineering discipline tool. It helps teams structure instructions, find common problems, run local checks and review behavioural changes before deployment. It should be used alongside runtime monitoring, access controls, human review, safety evaluation and platform-specific governance.
+
+## Behavioural coverage
+
+```bash
+pnpm agentlint coverage ./agent.agentspec.yaml
+pnpm agentlint coverage ./agent.agentspec.yaml --json
+```
+
+Reports route, handoff, tool, constraint, fallback and test scenario coverage. The report includes percentage coverage, uncovered branches and recommended test scenarios.

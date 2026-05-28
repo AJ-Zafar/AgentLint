@@ -10,6 +10,7 @@ export default defineConfig({
       "@agentspec/diff": new URL("./packages/diff/src/index.ts", import.meta.url).pathname,
       "@agentspec/grammar": new URL("./packages/grammar/src/index.ts", import.meta.url).pathname,
       "@agentspec/replay": new URL("./packages/replay/src/index.ts", import.meta.url).pathname,
+      "@agentspec/coverage": new URL("./packages/coverage/src/index.ts", import.meta.url).pathname,
       "@agentspec/compiler": new URL("./packages/compiler/src/index.ts", import.meta.url).pathname,
       "@agentspec/copilot-studio": new URL("./packages/copilot-studio/src/index.ts", import.meta.url).pathname,
       "@agentspec/copilot-studio-audit": new URL("./packages/copilot-studio-audit/src/index.ts", import.meta.url).pathname,
