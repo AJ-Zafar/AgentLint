@@ -1147,6 +1147,10 @@ pre.code-block {
 
   .nav-toggle { display: flex; }
 
+  /* Hide the spacer so margin-left: auto on .nav-toggle correctly
+     pushes the hamburger to the far right of the nav bar */
+  .nav-spacer { display: none; }
+
   .nav-external { display: none; }
 
   .nav-links {
