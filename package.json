@@ -11,7 +11,11 @@
     "agentspec": "node packages/cli/dist/bin/agentspec.js",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "typecheck": "tsc -b packages/spec packages/parser packages/linter packages/test-runner packages/diff packages/copilot-studio packages/vscode-extension packages/cli --pretty false",
+    "lint:examples": "pnpm agentspec lint examples/customer-support.agentspec.yaml && pnpm agentspec lint examples/copilot-studio-agent.agentspec.yaml && pnpm agentspec lint examples/public-sector-casework.agentspec.yaml",
+    "validate:examples": "pnpm agentspec validate examples/customer-support.agentspec.yaml && pnpm agentspec validate examples/copilot-studio-agent.agentspec.yaml && pnpm agentspec validate examples/public-sector-casework.agentspec.yaml",
+    "lint": "pnpm build && pnpm lint:examples"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

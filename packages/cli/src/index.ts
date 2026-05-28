@@ -205,14 +205,16 @@ export async function runCli(args: string[]): Promise<CliResult> {
   try {
     await program.parseAsync(args, { from: "user" });
   } catch (error) {
-    state.exitCode = 1;
     if (error instanceof CommanderError) {
-      if (error.message) {
+      state.exitCode = error.exitCode;
+      if (error.message && error.code !== "commander.helpDisplayed") {
         state.stderr.push(`${error.message}\n`);
       }
     } else if (error instanceof Error) {
+      state.exitCode = 1;
       state.stderr.push(`${error.message}\n`);
     } else {
+      state.exitCode = 1;
       state.stderr.push(`${String(error)}\n`);
     }
   }

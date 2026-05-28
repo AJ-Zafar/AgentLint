@@ -86,6 +86,13 @@ async function writeFixture(name: string, contents: string): Promise<string> {
 }
 
 describe("agentspec CLI", () => {
+  it("shows help with a zero exit code", async () => {
+    const result = await runCli(["--help"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Usage: agentspec");
+  });
+
   it("validates AgentSpec YAML files", async () => {
     const filePath = await writeFixture("valid.agentspec.yaml", validYaml);
     const result = await runCli(["validate", filePath]);
