@@ -3,15 +3,11 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "tsBuildInfoFile": "./cli.tsbuildinfo"
+    "tsBuildInfoFile": "./copilot-studio.tsbuildinfo"
   },
   "references": [
     { "path": "../spec" },
-    { "path": "../parser" },
-    { "path": "../linter" },
-    { "path": "../test-runner" },
-    { "path": "../diff" },
-    { "path": "../copilot-studio" }
+    { "path": "../parser" }
   ],
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]

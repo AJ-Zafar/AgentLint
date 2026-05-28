@@ -134,6 +134,17 @@ describe("agentspec CLI", () => {
     expect(result.stdout).toContain('Actual: "billing_support"');
   });
 
+
+  it("generates a Copilot Studio implementation plan", async () => {
+    const result = await runCli(["copilot-plan", "examples/copilot-studio-agent.agentspec.yaml"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("# Copilot Studio Implementation Plan: Copilot Studio Readiness Agent");
+    expect(result.stdout).toContain("## Topics");
+    expect(result.stdout).toContain("## Power Automate Flows");
+    expect(result.stdout).toContain("No Microsoft APIs are called");
+  });
+
   it("diffs two AgentSpec YAML files with a behavioral report", async () => {
     const oldPath = await writeFixture("old.agentspec.yaml", validYaml);
     const newPath = await writeFixture(

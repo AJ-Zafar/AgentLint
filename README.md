@@ -11,6 +11,7 @@ This project is infrastructure for instruction engineering, not a chatbot. All c
 - `@agentspec/linter` - Finds common instruction-engineering issues.
 - `@agentspec/test-runner` - Runs deterministic local test scenarios without LLM calls.
 - `@agentspec/diff` - Reports behavioral impact between AgentSpec files.
+- `@agentspec/copilot-studio` - Experimental Copilot Studio implementation plan mapper.
 - `agentspec-vscode` - VS Code extension for AgentSpec diagnostics and commands.
 - `@agentspec/cli` - Commander-based CLI exposing `validate`, `lint`, `test`, and `diff`.
 
@@ -26,6 +27,10 @@ pnpm agentspec lint examples/customer-support.agentspec.yaml
 pnpm agentspec test examples/customer-support.agentspec.yaml
 pnpm agentspec diff examples/customer-support.agentspec.yaml examples/copilot-studio-agent.agentspec.yaml
 ```
+
+## Copilot Studio planning
+
+`agentspec copilot-plan <file>` maps AgentSpec concepts to Microsoft Copilot Studio planning concepts and prints markdown covering topics, actions, knowledge sources, handoff rules, authentication assumptions, and candidate Power Automate flows. This is experimental planning output only: it does not call Microsoft APIs and does not generate export packages.
 
 ## VS Code extension
 

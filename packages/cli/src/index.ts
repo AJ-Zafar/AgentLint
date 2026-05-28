@@ -3,6 +3,7 @@ import { parseAgentSpecFile } from "@agentspec/parser";
 import { lintAgentSpec } from "@agentspec/linter";
 import { runAgentSpecTests, type TestRunResult } from "@agentspec/test-runner";
 import { diffAgentSpecs, type BehavioralDiffResult } from "@agentspec/diff";
+import { convertAgentSpecToCopilotStudioPlan } from "@agentspec/copilot-studio";
 
 export type CliResult = {
   exitCode: number;
@@ -66,6 +67,15 @@ export function createCli(state: CliState): Command {
       if (result.summary.failed > 0) {
         state.exitCode = 1;
       }
+    });
+
+  program
+    .command("copilot-plan")
+    .argument("<file>", "AgentSpec YAML file")
+    .description("Generate an experimental Microsoft Copilot Studio implementation plan.")
+    .action(async (file: string) => {
+      const parsed = await parseAgentSpecFile(file);
+      state.stdout.push(convertAgentSpecToCopilotStudioPlan(parsed.document));
     });
 
   program
