@@ -13,10 +13,11 @@
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "typecheck": "tsc -b packages/spec packages/parser packages/linter packages/test-runner packages/diff packages/copilot-studio packages/vscode-extension packages/cli --pretty false",
-    "lint:examples": "pnpm agentspec lint examples/customer-support.agentspec.yaml && pnpm agentspec lint examples/copilot-studio-agent.agentspec.yaml && pnpm agentspec lint examples/public-sector-casework.agentspec.yaml",
-    "validate:examples": "pnpm agentspec validate examples/customer-support.agentspec.yaml && pnpm agentspec validate examples/copilot-studio-agent.agentspec.yaml && pnpm agentspec validate examples/public-sector-casework.agentspec.yaml",
+    "lint:examples": "sh -c 'set -e; for file in examples/*.agentspec.yaml; do case \"$file\" in *.bad.agentspec.yaml) continue;; esac; pnpm agentspec lint \"$file\"; done'",
+    "validate:examples": "sh -c 'set -e; for file in examples/*.agentspec.yaml; do case \"$file\" in *.bad.agentspec.yaml) continue;; esac; pnpm agentspec validate \"$file\"; done'",
     "lint": "pnpm build && pnpm lint:examples",
-    "docs:linter-rules": "pnpm build && node scripts/generate-linter-rule-docs.mjs"
+    "docs:linter-rules": "pnpm build && node scripts/generate-linter-rule-docs.mjs",
+    "test:examples": "sh -c 'set -e; for file in examples/*.agentspec.yaml; do case \"$file\" in *.bad.agentspec.yaml) continue;; esac; pnpm agentspec test \"$file\"; done'"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

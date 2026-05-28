@@ -12,7 +12,7 @@ persona:
     - Use plain language.
     - Separate facts, policy and escalation rationale.
 instructions:
-  primary_goal: Classify customer support requests and choose the safest approved route.
+  primary_goal: ""
   secondary_goals:
     - Collect only account context required for the route.
     - Escalate refund exceptions and account ownership uncertainty.

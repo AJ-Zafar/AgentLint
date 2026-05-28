@@ -178,6 +178,10 @@ tests:
       - calls tool account_lookup
 ```
 
+## Examples gallery
+
+The `examples/` directory includes a gallery of AgentSpec files for customer support, HR policy, public sector casework, IT service desk, event RSVP, Power Platform governance and sales qualification agents. Each scenario has a passing example and a separate `*.bad.agentspec.yaml` file that is intentionally lint-invalid for demonstrations.
+
 ## CLI commands
 
 All CLI commands support `--json` for stable, machine-readable output suitable for CI/CD pipelines. Human-readable output remains the default.

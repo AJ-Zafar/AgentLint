@@ -49,7 +49,7 @@ The workflow:
 - runs deterministic tests for all tracked AgentSpec files
 - fails the pull request if any command exits non-zero
 
-The example excludes package fixture files under `packages/**/fixtures/**`, because fixtures are often intentionally invalid or designed to fail specific tests. Adjust the path filter if your repository stores production AgentSpec files elsewhere.
+The example excludes package fixture files under `packages/**/fixtures/**` and intentional bad example files matching `*.bad.agentspec.yaml`, because those files are designed to demonstrate failures. Adjust the path filter if your repository stores production AgentSpec files elsewhere.
 
 ## Example validation step
 
@@ -57,7 +57,7 @@ The example excludes package fixture files under `packages/**/fixtures/**`, beca
 - name: Validate AgentSpec files
   run: |
     set -euo pipefail
-    mapfile -t files < <(git ls-files -- '*.agentspec.yaml' '*.agentspec.yml' ':(exclude)packages/**/fixtures/**')
+    mapfile -t files < <(git ls-files -- '*.agentspec.yaml' '*.agentspec.yml' ':(exclude)packages/**/fixtures/**' ':(exclude)**/*.bad.agentspec.yaml')
     for file in "${files[@]}"; do
       pnpm agentspec validate "$file" --json
     done

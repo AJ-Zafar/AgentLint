@@ -32,6 +32,7 @@ export default defineConfig({
       {
         text: "Workflows",
         items: [
+          { text: "Examples gallery", link: "/guide/examples" },
           { text: "Testing agent behaviour", link: "/guide/testing" },
           { text: "Diff and regression analysis", link: "/guide/diff" },
           { text: "CI governance gates", link: "/guide/ci-governance" },
