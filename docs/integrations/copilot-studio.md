@@ -54,3 +54,19 @@ Use `--json` for CI-friendly output.
 The audit command reads the local zip file, looks for likely bot topics, actions, flows, knowledge references and handoff patterns, then reports gaps against the AgentSpec. It does not call Microsoft APIs, does not require Dataverse access and does not generate or modify solution packages.
 
 Because Copilot Studio solution internals may change, this should be treated as best-effort review support rather than an authoritative Microsoft package validator.
+
+## Extract and drift commands
+
+Expanded local solution support includes:
+
+```bash
+pnpm agentlint copilot-extract ./solution.zip
+pnpm agentlint copilot-drift --spec ./agent.agentspec.yaml --solution ./solution.zip
+pnpm agentlint copilot-drift --spec ./agent.agentspec.yaml --solution ./solution.zip --json
+```
+
+`copilot-extract` reads the local zip and emits a generated Agent Lint YAML spec based on extracted topics, trigger phrases, actions, flows, knowledge references, handoff configuration, authentication assumptions and fallback structures.
+
+`copilot-drift` compares an existing Agent Lint spec with the extracted solution structure and reports missing topics, unexpected topics, missing actions, undocumented high-risk actions and fallback or handoff gaps.
+
+These commands remain experimental and local-first. They do not call Microsoft APIs, do not require Dataverse access and do not validate official Copilot Studio export schemas.

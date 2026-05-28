@@ -33,3 +33,12 @@ pnpm agentspec copilot-audit \
   --solution packages/copilot-studio-audit/fixtures/fake-solution.zip \
   --json
 ```
+
+## Extract and drift
+
+```bash
+pnpm agentlint copilot-extract ./solution.zip
+pnpm agentlint copilot-drift --spec ./agent.agentspec.yaml --solution ./solution.zip
+```
+
+`copilot-extract` emits generated Agent Lint YAML. `copilot-drift` emits a drift report comparing a spec to extracted solution structure.

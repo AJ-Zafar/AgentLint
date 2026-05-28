@@ -1,0 +1,10 @@
+{
+  "kind": "orchestration",
+  "name": "generative_orchestration",
+  "enabled": true,
+  "mode": "generative",
+  "knowledgeSources": [
+    "publishing_policy"
+  ],
+  "fallback": "fallback_maker_admin_review"
+}

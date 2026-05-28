@@ -281,11 +281,13 @@ Generates an experimental markdown implementation plan that maps the spec to Cop
 ### Copilot Studio audit
 
 ```bash
+pnpm agentspec copilot-extract ./solution.zip
+pnpm agentspec copilot-drift --spec ./file.agentspec.yaml --solution ./solution.zip
 pnpm agentspec copilot-audit --spec ./file.agentspec.yaml --solution ./solution.zip
 pnpm agentspec copilot-audit --spec ./file.agentspec.yaml --solution ./solution.zip --json
 ```
 
-Experimentally inspects a local Power Platform solution export zip and compares likely Copilot Studio components with the expected instruction spec.
+Experimentally inspects a local Power Platform solution export zip. `copilot-extract` generates an Agent Lint spec from extracted components, `copilot-drift` reports drift between an existing spec and the export, and `copilot-audit` produces the full audit report.
 
 ## Copilot Studio angle
 

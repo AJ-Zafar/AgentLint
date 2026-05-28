@@ -1,0 +1,8 @@
+{
+  "kind": "authentication",
+  "name": "connection_references",
+  "assumptions": [
+    "Maker must have environment read access",
+    "Connector inventory requires authenticated Power Platform access"
+  ]
+}

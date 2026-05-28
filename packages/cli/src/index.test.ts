@@ -293,6 +293,33 @@ describe("agentspec CLI", () => {
   });
 
 
+
+  it("extracts a Copilot Studio solution into an Agent Lint spec", async () => {
+    const result = await runCli(["copilot-extract", "packages/copilot-studio-audit/fixtures/fake-solution.zip"], "agentlint");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("name: Copilot Studio Readiness Agent");
+    expect(result.stdout).toContain("deployment_readiness");
+    expect(result.stdout).toContain("delete_environment");
+  });
+
+  it("reports Copilot Studio drift", async () => {
+    const result = await runCli([
+      "copilot-drift",
+      "--spec",
+      "examples/copilot-studio-agent.agentspec.yaml",
+      "--solution",
+      "packages/copilot-studio-audit/fixtures/fake-solution.zip",
+      "--json"
+    ], "agentlint");
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(parsed.command).toBe("copilot-drift");
+    expect(parsed.drift.summary.driftCount).toBe(3);
+    expect(parsed.drift.items).toEqual(expect.arrayContaining([expect.objectContaining({ type: "missing-topic", name: "connector_review" })]));
+  });
+
   it("audits a Copilot Studio solution export", async () => {
     const result = await runCli([
       "copilot-audit",
@@ -326,8 +353,8 @@ describe("agentspec CLI", () => {
     expect(parsed.command).toBe("copilot-audit");
     expect(parsed.specFile).toBe("examples/copilot-studio-agent.agentspec.yaml");
     expect(parsed.solutionFile).toBe("packages/copilot-studio-audit/fixtures/fake-solution.zip");
-    expect(parsed.report.findings.expectedMissingTopics).toEqual(["connector_review", "fallback_maker_admin_review"]);
-    expect(parsed.report.findings.highRiskToolsNotDocumentedInAgentSpec).toEqual([{ name: "delete_environment", riskLevel: "critical" }]);
+    expect(parsed.report.findings.expectedMissingTopics).toEqual(["connector_review"]);
+    expect(parsed.report.findings.highRiskToolsNotDocumentedInAgentSpec).toEqual([{ name: "delete_environment", riskLevel: "critical", requiresAuthentication: true, operations: ["delete_environment"] }]);
     expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
   });
 

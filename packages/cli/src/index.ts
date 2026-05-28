@@ -7,7 +7,8 @@ import { compileAgentSpecGraph, type GraphCompilationResult } from "@agentspec/g
 import { compileInstructionsToAgentSpec } from "@agentspec/compiler";
 import { readFile } from "node:fs/promises";
 import { convertAgentSpecToCopilotStudioPlan } from "@agentspec/copilot-studio";
-import { auditCopilotStudioSolution, type CopilotStudioAuditReport } from "@agentspec/copilot-studio-audit";
+import { auditCopilotStudioSolution, analyseCopilotStudioDrift, generateAgentSpecFromCopilotStudioSolution, type CopilotStudioAuditReport, type CopilotStudioDriftReport } from "@agentspec/copilot-studio-audit";
+import { stringify } from "yaml";
 
 export type CliResult = {
   exitCode: number;
@@ -146,6 +147,31 @@ export function createCli(state: CliState, programName = "agentspec"): Command {
       const markdown = convertAgentSpecToCopilotStudioPlan(parsed.document);
       const payload = { command: "copilot-plan", file, format: "markdown", markdown };
       state.stdout.push(options.json ? jsonLine(payload) : markdown);
+    });
+
+  program
+    .command("copilot-extract")
+    .argument("<solution>", "Microsoft Power Platform solution export zip")
+    .option("--json", "Emit machine-readable JSON output")
+    .description("Experimentally extract a local Copilot Studio solution export into Agent Lint YAML.")
+    .action(async (solution: string, options: { json?: boolean }) => {
+      const document = await generateAgentSpecFromCopilotStudioSolution(solution);
+      const payload = { command: "copilot-extract", solutionFile: solution, spec: document };
+      state.stdout.push(options.json ? jsonLine(payload) : stringify(document, { sortMapEntries: false }));
+    });
+
+  program
+    .command("copilot-drift")
+    .requiredOption("--spec <file>", "AgentSpec YAML file")
+    .requiredOption("--solution <file>", "Microsoft Power Platform solution export zip")
+    .option("--json", "Emit machine-readable JSON output")
+    .description("Experimentally analyse drift between AgentSpec and a local Copilot Studio solution export.")
+    .action(async (options: { spec: string; solution: string; json?: boolean }) => {
+      const parsed = await parseForCommand(options.spec, state, "copilot-drift", options.json);
+      if (!parsed) return;
+      const drift = await analyseCopilotStudioDrift({ spec: parsed.document, solutionPath: options.solution });
+      const payload = { command: "copilot-drift", specFile: options.spec, solutionFile: options.solution, drift };
+      state.stdout.push(options.json ? jsonLine(payload) : formatCopilotDrift(drift));
     });
 
   program
@@ -385,6 +411,18 @@ function escapeMermaidLabel(value: string): string {
   return value.replace(/"/g, "'");
 }
 
+function formatCopilotDrift(report: CopilotStudioDriftReport): string {
+  const lines = [
+    "Copilot Studio Drift Report",
+    "Status: experimental",
+    `Solution: ${report.solutionPath}`,
+    `Drift items: ${report.summary.driftCount}`,
+    ""
+  ];
+  appendFindingList(lines, "Drift", report.items.map((item) => `${item.type}: ${item.name} - ${item.detail}`));
+  return `${lines.join("\n").trimEnd()}\n`;
+}
+
 function formatCopilotAudit(report: CopilotStudioAuditReport): string {
   const lines = [
     "Copilot Studio Audit Report",
@@ -394,11 +432,11 @@ function formatCopilotAudit(report: CopilotStudioAuditReport): string {
     `Findings: ${report.summary.findingCount}`,
     "",
     "Extracted components",
-    `  Topics: ${formatList(report.extracted.topics)}`,
+    `  Topics: ${formatList(report.extracted.topics.map((topic) => topic.name))}`,
     `  Actions: ${formatList(report.extracted.actions.map((action) => action.riskLevel ? `${action.name} (${action.riskLevel})` : action.name))}`,
-    `  Flows: ${formatList(report.extracted.flows)}`,
-    `  Knowledge: ${formatList(report.extracted.knowledgeReferences)}`,
-    `  Handoffs: ${formatList(report.extracted.handoffs)}`,
+    `  Flows: ${formatList(report.extracted.flows.map((flow) => flow.name))}`,
+    `  Knowledge: ${formatList(report.extracted.knowledgeReferences.map((knowledge) => knowledge.name))}`,
+    `  Handoffs: ${formatList(report.extracted.handoffs.map((handoff) => handoff.name))}`,
     ""
   ];
 

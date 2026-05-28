@@ -4,5 +4,11 @@
   "triggerPhrases": [
     "campaign",
     "marketing"
+  ],
+  "generativeOrchestration": {
+    "enabled": false
+  },
+  "actions": [
+    "delete_environment"
   ]
 }
