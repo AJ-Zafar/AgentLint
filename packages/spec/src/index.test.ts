@@ -118,7 +118,7 @@ describe("AgentSpec v1 schema", () => {
     expect(generated).toEqual(agentSpecJsonSchema);
     expect(generated.$schema).toBe("https://json-schema.org/draft/2020-12/schema");
     expect(generated.required).toContain("persona");
-    expect(generated.properties.tools.items.required).toContain("risk_level");
+    expect(generated.properties.tools.items.required).not.toContain("risk_level");
     expect(generated.properties.tests.items.properties.expected_tool_calls.items.type).toBe("string");
   });
 });

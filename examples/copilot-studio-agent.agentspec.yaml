@@ -25,6 +25,9 @@ instructions:
   do_not:
     - Do not invent connector permissions or deployment status.
     - Do not claim production readiness without local evidence.
+    - Do not publish agents.
+    - Do not write connector secrets.
+    - Do not modify environment policy.
     - Do not modify maker projects.
 constraints:
   safety:
@@ -70,6 +73,15 @@ routes:
       - data access
     target: tool:inspect_agent_config
     priority: 10
+  - name: fallback_maker_admin_review
+    description: Fallback route for unclear environment ownership, policy gaps, or unknown publishing authority.
+    triggers:
+      - fallback
+      - unclear
+      - unknown authority
+      - policy gap
+    target: handoff:maker_admin_review
+    priority: 100
 handoffs:
   - name: maker_admin_review
     condition: Publishing, connector permission, DLP policy, or environment ownership requires administrator approval.

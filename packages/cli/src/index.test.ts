@@ -92,12 +92,16 @@ describe("agentspec CLI", () => {
     expect(result.stdout).toContain("valid");
   });
 
-  it("lints AgentSpec YAML files and returns non-zero for issues", async () => {
+  it("lints AgentSpec YAML files with grouped terminal output", async () => {
     const filePath = await writeFixture("lint.agentspec.yaml", lintYaml);
     const result = await runCli(["lint", filePath]);
 
     expect(result.exitCode).toBe(1);
-    expect(result.stdout).toContain("undefined-tool");
+    expect(result.stdout).toContain("Errors");
+    expect(result.stdout).toContain("Warnings");
+    expect(result.stdout).toContain("route-target-not-defined");
+    expect(result.stdout).toContain("missing-fallback-route");
+    expect(result.stdout).toContain("Suggestion:");
   });
 
   it("runs deterministic declared tests without live model calls", async () => {

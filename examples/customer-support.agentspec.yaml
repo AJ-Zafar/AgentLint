@@ -24,7 +24,9 @@ instructions:
     - Explain why a handoff is required when one is triggered.
   do_not:
     - Do not request full payment card numbers, passwords, or secrets.
-    - Do not invent refund decisions or subscription state.
+    - Do not read full payment card data.
+    - Do not write refund decisions or invent subscription state.
+    - Do not reset passwords.
     - Do not expose internal support notes to customers.
 constraints:
   safety:
@@ -64,6 +66,15 @@ routes:
       - payment
     target: tool:account_lookup
     priority: 10
+  - name: fallback_human_support
+    description: Fallback route for unclear policy coverage, unknown ownership, or policy gaps.
+    triggers:
+      - fallback
+      - unclear
+      - unknown ownership
+      - policy gap
+    target: handoff:human_support
+    priority: 100
 handoffs:
   - name: human_support
     condition: Refund approval, account ownership uncertainty, policy exception, or safety concern.

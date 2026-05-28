@@ -55,7 +55,7 @@ export type AgentSpecTool = {
   allowed_operations: string[];
   forbidden_operations: string[];
   requires_auth: boolean;
-  risk_level: AgentSpecRiskLevel;
+  risk_level?: AgentSpecRiskLevel;
 };
 
 export type AgentSpecRoute = {
@@ -111,6 +111,7 @@ export type AgentSpecValidationResult =
     };
 
 const nonEmptyString = z.string().trim().min(1);
+const linterCheckedString = z.string();
 const nonEmptyStringArray = z.array(nonEmptyString);
 
 export const riskLevelSchema = z.enum(["low", "medium", "high", "critical"]);
@@ -130,7 +131,7 @@ export const agentSpecSchema = z.strictObject({
     style_rules: nonEmptyStringArray
   }),
   instructions: z.strictObject({
-    primary_goal: nonEmptyString,
+    primary_goal: linterCheckedString,
     secondary_goals: nonEmptyStringArray,
     do: nonEmptyStringArray,
     do_not: nonEmptyStringArray
@@ -149,7 +150,7 @@ export const agentSpecSchema = z.strictObject({
       allowed_operations: nonEmptyStringArray,
       forbidden_operations: z.array(nonEmptyString),
       requires_auth: z.boolean(),
-      risk_level: riskLevelSchema
+      risk_level: riskLevelSchema.optional()
     })
   ),
   routes: z.array(
@@ -164,7 +165,7 @@ export const agentSpecSchema = z.strictObject({
   handoffs: z.array(
     z.strictObject({
       name: nonEmptyString,
-      condition: nonEmptyString,
+      condition: linterCheckedString,
       destination: nonEmptyString,
       required_context: z.array(nonEmptyString)
     })
@@ -187,6 +188,7 @@ export const agentSpecSchema = z.strictObject({
 type SchemaProperties = Record<string, JsonSchema>;
 
 const stringSchema = (): JsonSchema => ({ type: "string", minLength: 1 });
+const linterCheckedStringSchema = (): JsonSchema => ({ type: "string" });
 const booleanSchema = (): JsonSchema => ({ type: "boolean" });
 const integerSchema = (minimum = 0): JsonSchema => ({ type: "integer", minimum });
 const stringArraySchema = (): JsonSchema => ({ type: "array", items: stringSchema() });
@@ -230,7 +232,7 @@ export function generateAgentSpecJsonSchema(): JsonSchema {
         style_rules: stringArraySchema()
       }),
       instructions: objectSchema({
-        primary_goal: stringSchema(),
+        primary_goal: linterCheckedStringSchema(),
         secondary_goals: stringArraySchema(),
         do: stringArraySchema(),
         do_not: stringArraySchema()
@@ -250,7 +252,7 @@ export function generateAgentSpecJsonSchema(): JsonSchema {
           forbidden_operations: stringArraySchema(),
           requires_auth: booleanSchema(),
           risk_level: enumSchema(["low", "medium", "high", "critical"])
-        })
+        }, ["name", "description", "allowed_operations", "forbidden_operations", "requires_auth"])
       ),
       routes: arrayOf(
         objectSchema({
@@ -264,7 +266,7 @@ export function generateAgentSpecJsonSchema(): JsonSchema {
       handoffs: arrayOf(
         objectSchema({
           name: stringSchema(),
-          condition: stringSchema(),
+          condition: linterCheckedStringSchema(),
           destination: stringSchema(),
           required_context: stringArraySchema()
         })

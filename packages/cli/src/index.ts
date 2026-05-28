@@ -50,9 +50,7 @@ export function createCli(state: CliState): Command {
       }
 
       state.exitCode = 1;
-      for (const issue of result.issues) {
-        state.stdout.push(`${issue.severity} ${issue.code} ${issue.path}: ${issue.message}\n`);
-      }
+      state.stdout.push(formatLintIssues(result.issues));
     });
 
   program
@@ -93,6 +91,33 @@ export function createCli(state: CliState): Command {
     });
 
   return program;
+}
+
+function formatLintIssues(issues: Array<{ severity: string; ruleId: string; path: string; message: string; suggestion: string; confidence: number }>): string {
+  const groups = [
+    { severity: "error", title: "Errors" },
+    { severity: "warning", title: "Warnings" },
+    { severity: "info", title: "Info" }
+  ];
+  const lines: string[] = [];
+
+  for (const group of groups) {
+    const groupIssues = issues.filter((issue) => issue.severity === group.severity);
+    if (groupIssues.length === 0) {
+      continue;
+    }
+
+    lines.push(`${group.title} (${groupIssues.length})`);
+    for (const issue of groupIssues) {
+      lines.push(`  - ${issue.ruleId} [${issue.path}]`);
+      lines.push(`    ${issue.message}`);
+      lines.push(`    Suggestion: ${issue.suggestion}`);
+      lines.push(`    Confidence: ${Math.round(issue.confidence * 100)}%`);
+    }
+    lines.push("");
+  }
+
+  return `${lines.join("\n").trimEnd()}\n`;
 }
 
 export async function runCli(args: string[]): Promise<CliResult> {

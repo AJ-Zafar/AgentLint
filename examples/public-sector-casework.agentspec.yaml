@@ -24,6 +24,9 @@ instructions:
     - Explain when senior caseworker review is required.
   do_not:
     - Do not disclose protected personal data outside the authorized case context.
+    - Do not write eligibility decisions.
+    - Do not read raw evidence bundles.
+    - Do not export personal records.
     - Do not make eligibility, enforcement, or statutory decisions.
     - Do not request unnecessary sensitive information.
 constraints:
@@ -62,6 +65,15 @@ routes:
       - risk of harm
     target: tool:case_lookup
     priority: 1
+  - name: fallback_senior_caseworker
+    description: Fallback route for unclear authority, unknown facts, or policy gaps.
+    triggers:
+      - fallback
+      - unclear
+      - unknown facts
+      - policy gap
+    target: handoff:senior_caseworker
+    priority: 100
 handoffs:
   - name: senior_caseworker
     condition: Eligibility decision, safeguarding concern, unclear authority, vulnerability, or urgent risk of harm.
