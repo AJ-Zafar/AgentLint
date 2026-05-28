@@ -180,18 +180,23 @@ tests:
 
 ## CLI commands
 
+All CLI commands support `--json` for stable, machine-readable output suitable for CI/CD pipelines. Human-readable output remains the default.
+
+
 ### Validate
 
 ```bash
 pnpm agentspec validate ./file.agentspec.yaml
+pnpm agentspec validate ./file.agentspec.yaml --json
 ```
 
-Checks that the YAML can be parsed and conforms to the AgentSpec schema.
+Checks that the YAML can be parsed and conforms to the AgentSpec schema. Use `--json` for stable CI output.
 
 ### Lint
 
 ```bash
 pnpm agentspec lint ./file.agentspec.yaml
+pnpm agentspec lint ./file.agentspec.yaml --json
 ```
 
 Runs rule-based checks for issues such as missing goals, conflicting instructions, undefined route targets, missing fallback routes, high-risk tools without authentication and vague instruction language.
@@ -200,6 +205,7 @@ Runs rule-based checks for issues such as missing goals, conflicting instruction
 
 ```bash
 pnpm agentspec test ./file.agentspec.yaml
+pnpm agentspec test ./file.agentspec.yaml --json
 ```
 
 Runs deterministic local test scenarios. The runner matches inputs against route triggers, infers the likely route, handoff and tool calls, checks expected and forbidden tool calls, evaluates simple assertions and prints a summary score.
@@ -217,6 +223,7 @@ Reports behavioural impact rather than raw line changes. It detects changes to g
 
 ```bash
 pnpm agentspec copilot-plan ./file.agentspec.yaml
+pnpm agentspec copilot-plan ./file.agentspec.yaml --json
 ```
 
 Produces experimental markdown that maps AgentSpec concepts to Microsoft Copilot Studio planning concepts: topics, actions, knowledge sources, handoff rules, authentication assumptions and candidate Power Automate flows. It does not call Microsoft APIs and does not generate Copilot Studio export packages.

@@ -1,5 +1,5 @@
 import { Command, CommanderError } from "commander";
-import { parseAgentSpecFile } from "@agentspec/parser";
+import { AgentSpecParseError, parseAgentSpecFile, type ParsedAgentSpec } from "@agentspec/parser";
 import { lintAgentSpec } from "@agentspec/linter";
 import { runAgentSpecTests, type TestRunResult } from "@agentspec/test-runner";
 import { diffAgentSpecs, type BehavioralDiffResult } from "@agentspec/diff";
@@ -32,38 +32,62 @@ export function createCli(state: CliState): Command {
   program
     .command("validate")
     .argument("<file>", "AgentSpec YAML file")
+    .option("--json", "Emit machine-readable JSON output")
     .description("Validate an AgentSpec YAML file.")
-    .action(async (file: string) => {
-      await parseAgentSpecFile(file);
-      state.stdout.push(`${file} is valid\n`);
+    .action(async (file: string, options: { json?: boolean }) => {
+      const parsed = await parseForCommand(file, state, "validate", options.json);
+      if (!parsed) {
+        return;
+      }
+
+      const payload = { command: "validate", file, valid: true, diagnostics: [] };
+      state.stdout.push(options.json ? jsonLine(payload) : `${file} is valid\n`);
     });
 
   program
     .command("lint")
     .argument("<file>", "AgentSpec YAML file")
+    .option("--json", "Emit machine-readable JSON output")
     .description("Lint an AgentSpec YAML file for instruction-engineering issues.")
-    .action(async (file: string) => {
-      const parsed = await parseAgentSpecFile(file);
+    .action(async (file: string, options: { json?: boolean }) => {
+      const parsed = await parseForCommand(file, state, "lint", options.json);
+      if (!parsed) {
+        return;
+      }
+
       const result = lintAgentSpec(parsed.document);
+      const payload = {
+        command: "lint",
+        file,
+        success: result.issues.length === 0,
+        issueCount: result.issues.length,
+        issues: result.issues
+      };
 
       if (result.issues.length === 0) {
-        state.stdout.push(`${file}: no lint issues\n`);
+        state.stdout.push(options.json ? jsonLine(payload) : `${file}: no lint issues\n`);
         return;
       }
 
       state.exitCode = 1;
-      state.stdout.push(formatLintIssues(result.issues));
+      state.stdout.push(options.json ? jsonLine(payload) : formatLintIssues(result.issues));
     });
 
   program
     .command("test")
     .argument("<file>", "AgentSpec YAML file")
+    .option("--json", "Emit machine-readable JSON output")
     .description("Run deterministic declared AgentSpec tests without live model calls.")
-    .action(async (file: string) => {
-      const parsed = await parseAgentSpecFile(file);
-      const result = runAgentSpecTests(parsed.document);
+    .action(async (file: string, options: { json?: boolean }) => {
+      const parsed = await parseForCommand(file, state, "test", options.json);
+      if (!parsed) {
+        return;
+      }
 
-      state.stdout.push(formatTestRun(result));
+      const result = runAgentSpecTests(parsed.document);
+      const payload = { command: "test", file, success: result.summary.failed === 0, summary: result.summary, tests: result.tests };
+
+      state.stdout.push(options.json ? jsonLine(payload) : formatTestRun(result));
       if (result.summary.failed > 0) {
         state.exitCode = 1;
       }
@@ -72,10 +96,17 @@ export function createCli(state: CliState): Command {
   program
     .command("copilot-plan")
     .argument("<file>", "AgentSpec YAML file")
+    .option("--json", "Emit machine-readable JSON output")
     .description("Generate an experimental Microsoft Copilot Studio implementation plan.")
-    .action(async (file: string) => {
-      const parsed = await parseAgentSpecFile(file);
-      state.stdout.push(convertAgentSpecToCopilotStudioPlan(parsed.document));
+    .action(async (file: string, options: { json?: boolean }) => {
+      const parsed = await parseForCommand(file, state, "copilot-plan", options.json);
+      if (!parsed) {
+        return;
+      }
+
+      const markdown = convertAgentSpecToCopilotStudioPlan(parsed.document);
+      const payload = { command: "copilot-plan", file, format: "markdown", markdown };
+      state.stdout.push(options.json ? jsonLine(payload) : markdown);
     });
 
   program
@@ -85,13 +116,55 @@ export function createCli(state: CliState): Command {
     .option("--json", "Emit machine-readable JSON output")
     .description("Report behavioral impact between two AgentSpec YAML files.")
     .action(async (oldFile: string, newFile: string, options: { json?: boolean }) => {
-      const [oldSpec, newSpec] = await Promise.all([parseAgentSpecFile(oldFile), parseAgentSpecFile(newFile)]);
+      const oldSpec = await parseForCommand(oldFile, state, "diff", options.json);
+      if (!oldSpec) {
+        return;
+      }
+      const newSpec = await parseForCommand(newFile, state, "diff", options.json);
+      if (!newSpec) {
+        return;
+      }
       const result = diffAgentSpecs(oldSpec.document, newSpec.document);
+      const payload = { command: "diff", oldFile, newFile, impact: result.impact, summary: result.summary, changes: result.changes };
 
-      state.stdout.push(options.json ? `${JSON.stringify(result, null, 2)}\n` : formatBehavioralDiff(result));
+      state.stdout.push(options.json ? jsonLine(payload) : formatBehavioralDiff(result));
     });
 
   return program;
+}
+
+async function parseForCommand(
+  file: string,
+  state: CliState,
+  command: string,
+  json?: boolean
+): Promise<ParsedAgentSpec | undefined> {
+  try {
+    return await parseAgentSpecFile(file);
+  } catch (error) {
+    if (json && error instanceof AgentSpecParseError) {
+      state.exitCode = 1;
+      state.stdout.push(
+        jsonLine({
+          command,
+          file,
+          valid: false,
+          diagnostics: error.issues.map((issue) => ({
+            severity: "error",
+            path: issue.path,
+            message: issue.message
+          }))
+        })
+      );
+      return undefined;
+    }
+
+    throw error;
+  }
+}
+
+function jsonLine(value: unknown): string {
+  return `${JSON.stringify(value, null, 2)}\n`;
 }
 
 function formatLintIssues(issues: Array<{ severity: string; ruleId: string; path: string; message: string; suggestion: string; confidence: number }>): string {

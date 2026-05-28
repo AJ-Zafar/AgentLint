@@ -16,10 +16,13 @@ Build the workspace before running commands against compiled output:
 pnpm build
 ```
 
+All commands support `--json` for stable, machine-readable output in CI/CD pipelines. Human-readable output remains the default.
+
 ## `validate`
 
 ```bash
 pnpm agentspec validate ./file.agentspec.yaml
+pnpm agentspec validate ./file.agentspec.yaml --json
 ```
 
 Parses YAML and validates the document against the AgentSpec schema.
@@ -28,6 +31,7 @@ Parses YAML and validates the document against the AgentSpec schema.
 
 ```bash
 pnpm agentspec lint ./file.agentspec.yaml
+pnpm agentspec lint ./file.agentspec.yaml --json
 ```
 
 Runs the rule-based linter and prints grouped diagnostics. The process exits non-zero when lint issues are found.
@@ -36,6 +40,7 @@ Runs the rule-based linter and prints grouped diagnostics. The process exits non
 
 ```bash
 pnpm agentspec test ./file.agentspec.yaml
+pnpm agentspec test ./file.agentspec.yaml --json
 ```
 
 Runs deterministic test scenarios from the `tests` section. The process exits non-zero when one or more tests fail.
@@ -58,6 +63,7 @@ pnpm agentspec diff ./old.agentspec.yaml ./new.agentspec.yaml --json
 
 ```bash
 pnpm agentspec copilot-plan ./file.agentspec.yaml
+pnpm agentspec copilot-plan ./file.agentspec.yaml --json
 ```
 
 Generates an experimental Microsoft Copilot Studio implementation plan in markdown. This is a planning aid only; it does not call Microsoft APIs or generate export packages.
