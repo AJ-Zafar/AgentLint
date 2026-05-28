@@ -4,7 +4,7 @@ import { lintAgentSpec, lintRules } from "@agentspec/linter";
 import { runAgentSpecTests, type TestRunResult } from "@agentspec/test-runner";
 import { diffAgentSpecs, simulateAgentSpecDiff, type BehavioralDiffResult, type SimulatedDiffReport } from "@agentspec/diff";
 import { compileAgentSpecGraph, type GraphCompilationResult } from "@agentspec/grammar";
-import { replayScenario, type ReplayResult } from "@agentspec/replay";
+import { renderReplayMermaid, replayScenario, type ReplayResult } from "@agentspec/replay";
 import { analyseBehaviouralCoverage, type BehaviouralCoverageReport } from "@agentspec/coverage";
 import { compileInstructionsToAgentSpec } from "@agentspec/compiler";
 import { readFile, writeFile } from "node:fs/promises";
@@ -150,13 +150,14 @@ export function createCli(state: CliState, programName = "agentspec"): Command {
     .argument("<file>", "Agent Lint YAML file")
     .requiredOption("--scenario <name>", "Scenario name to replay")
     .option("--json", "Emit machine-readable JSON output")
+    .option("--mermaid", "Emit Mermaid execution graph output")
     .description("Replay a named scenario through the behaviour graph.")
-    .action(async (file: string, options: { scenario: string; json?: boolean }) => {
+    .action(async (file: string, options: { scenario: string; json?: boolean; mermaid?: boolean }) => {
       const parsed = await parseForCommand(file, state, "replay", options.json);
       if (!parsed) return;
       const result = replayScenario(parsed.document, options.scenario);
       const payload = { command: "replay", file, result };
-      state.stdout.push(options.json ? jsonLine(payload) : formatReplay(result));
+      state.stdout.push(options.json ? jsonLine(payload) : options.mermaid ? renderReplayMermaid(result) : formatReplay(result));
     });
 
   program

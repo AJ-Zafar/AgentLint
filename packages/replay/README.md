@@ -11,3 +11,7 @@ Deterministic scenario replay engine for Agent Lint behaviour graphs.
 - Produces a step-by-step execution trace.
 
 No LLM calls are made. Replay is a local structural evaluation over the Agent Lint spec.
+
+## Mermaid output
+
+Use `agentlint replay <file> --scenario <name> --mermaid` to render the replay trace as a Mermaid graph. The diagram includes evaluated conditions, rejected routes, the selected path, tool eligibility decisions, handoff nodes and the final terminal response.

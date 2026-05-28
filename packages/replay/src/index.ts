@@ -16,6 +16,7 @@ export type ReplayResult = {
   toolEligibilityChecks: Array<{ tool: string; eligible: boolean; reason: string }>;
   handoffReasoning?: string;
   trace: ReplayTraceStep[];
+  rejectedRoutes: Array<{ route: string; reason: string }>;
 };
 
 type Context = Record<string, string | number | boolean>;
@@ -29,6 +30,7 @@ export function replayScenario(spec: AgentSpecDocument, scenarioName: string): R
   const trace: ReplayTraceStep[] = [];
   const decisionPath: string[] = [];
   const triggeredConstraints: string[] = [];
+  const rejectedRoutes: Array<{ route: string; reason: string }> = [];
   let step = 1;
 
   if (spec.constraints.evaluation) {
@@ -43,9 +45,14 @@ export function replayScenario(spec: AgentSpecDocument, scenarioName: string): R
   for (const route of [...spec.routes].sort((a, b) => a.priority - b.priority)) {
     const decisionNode = `decision:${route.name}`;
     decisionPath.push(decisionNode);
+    const conditionLabel = route.conditions ? formatCondition(route.conditions) : route.triggers.join(" OR ");
     const evaluation = route.conditions ? evaluateExpression(route.conditions, scenario.context) : evaluateTriggers(route, scenario.input);
     triggeredConstraints.push(...evaluation.matched);
     trace.push({ step: step++, kind: "decision", node: decisionNode, result: evaluation.passed ? "matched" : "skipped" });
+
+    if (!evaluation.passed) {
+      rejectedRoutes.push({ route: route.name, reason: `${conditionLabel} evaluated false` });
+    }
 
     if (evaluation.passed && !selectedRoute) {
       selectedRoute = route;
@@ -87,7 +94,8 @@ export function replayScenario(spec: AgentSpecDocument, scenarioName: string): R
     selectedRoute: selectedRoute?.name,
     toolEligibilityChecks,
     handoffReasoning,
-    trace
+    trace,
+    rejectedRoutes
   };
 }
 
@@ -156,4 +164,43 @@ function formatCondition(expression: AgentConditionExpression): string {
   if ("all" in expression) return expression.all.map(formatCondition).join(" AND ");
   if ("any" in expression) return expression.any.map(formatCondition).join(" OR ");
   return `NOT (${formatCondition(expression.not)})`;
+}
+
+
+export function renderReplayMermaid(result: ReplayResult): string {
+  const lines = ["flowchart TD"];
+  const path = result.decisionPath;
+  for (const node of path) {
+    lines.push(`  ${mermaidId(node)}["${mermaidLabel(node)}"]`);
+  }
+  for (let index = 1; index < path.length; index += 1) {
+    lines.push(`  ${mermaidId(path[index - 1])} --> ${mermaidId(path[index])}`);
+  }
+  for (const rejected of result.rejectedRoutes) {
+    const rejectedId = `rejected:${rejected.route}`;
+    lines.push(`  ${mermaidId(rejectedId)}["${escapeMermaid(`${rejected.route} rejected\\n${rejected.reason}`)}"]`);
+    lines.push(`  ${mermaidId(`decision:${rejected.route}`)} -. rejected .-> ${mermaidId(rejectedId)}`);
+  }
+  for (const check of result.toolEligibilityChecks) {
+    const checkId = `tool-check:${check.tool}`;
+    lines.push(`  ${mermaidId(checkId)}["${escapeMermaid(`${check.tool} ${check.eligible ? "eligible" : "not eligible"}\\n${check.reason}`)}"]`);
+    if (path.includes(`tool:${check.tool}`)) {
+      lines.push(`  ${mermaidId(`tool:${check.tool}`)} --> ${mermaidId(checkId)}`);
+    } else {
+      lines.push(`  ${mermaidId(path[path.length - 1] ?? "terminal")} -. tool check .-> ${mermaidId(checkId)}`);
+    }
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+function mermaidId(value: string): string {
+  return value.replace(/[^A-Za-z0-9_]/g, "_");
+}
+
+function mermaidLabel(value: string): string {
+  return escapeMermaid(value.replace(/^([^:]+):/, "$1: "));
+}
+
+function escapeMermaid(value: string): string {
+  return value.replace(/"/g, "'");
 }

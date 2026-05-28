@@ -113,6 +113,7 @@ Runs deterministic scenario generation over two specs and reports behavioural si
 ```bash
 pnpm agentlint replay ./agent.agentspec.yaml --scenario angry-refund-user
 pnpm agentlint replay ./agent.agentspec.yaml --scenario angry-refund-user --json
+pnpm agentlint replay ./agent.agentspec.yaml --scenario angry-refund-user --mermaid
 ```
 
 Runs deterministic path evaluation through the behaviour graph for a named scenario and reports the decision path, triggered constraints, selected route, tool eligibility checks, handoff reasoning and execution trace.

@@ -313,6 +313,23 @@ describe("agentspec CLI", () => {
     expect(result.stdout).toContain("Tool eligibility checks");
   });
 
+
+
+  it("renders replay Mermaid trace output", async () => {
+    const result = await runCli([
+      "replay",
+      "packages/replay/fixtures/angry-refund-user.agentspec.yaml",
+      "--scenario",
+      "angry-refund-user",
+      "--mermaid"
+    ], "agentlint");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("flowchart TD");
+    expect(result.stdout).toContain("decision_small_refund");
+    expect(result.stdout).toContain("account_lookup not eligible");
+  });
+
   it("compiles loose instructions into Agent Lint YAML", async () => {
     const result = await runCli(["compile", "packages/compiler/fixtures/support-instructions.md"], "agentlint");
 

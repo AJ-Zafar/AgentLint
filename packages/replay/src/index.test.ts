@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgentSpecDocument } from "@agentspec/spec";
-import { replayScenario } from "./index";
+import { renderReplayMermaid, replayScenario } from "./index";
 
 const spec: AgentSpecDocument = {
   agent: { name: "Replay Agent", description: "Replay tests.", version: "1.0.0", owner: "qa", domain: "support" },
@@ -43,4 +43,20 @@ describe("scenario replay engine", () => {
       expect.objectContaining({ kind: "handoff", node: "handoff:human_support" })
     ]));
   });
+
+  it("renders a step-by-step Mermaid execution graph", () => {
+    const result = replayScenario(spec, "angry-refund-user");
+    const mermaid = renderReplayMermaid(result);
+
+    expect(result.rejectedRoutes).toEqual([{ route: "small_refund", reason: "intent == refund AND authenticated == true AND amount < 50 evaluated false" }]);
+    expect(mermaid).toContain("flowchart TD");
+    expect(mermaid).toContain("constraint_evaluation");
+    expect(mermaid).toContain("decision_small_refund");
+    expect(mermaid).toContain("rejected");
+    expect(mermaid).toContain("decision_fallback_human_support");
+    expect(mermaid).toContain("handoff_human_support");
+    expect(mermaid).toContain("terminal_fallback_human_support");
+    expect(mermaid).toContain("account_lookup not eligible");
+  });
+
 });

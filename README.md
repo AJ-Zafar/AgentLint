@@ -271,9 +271,10 @@ Reports behavioural impact rather than raw line changes. The implemented diff de
 ```bash
 pnpm agentlint replay ./agent.agentspec.yaml --scenario angry-refund-user
 pnpm agentlint replay ./agent.agentspec.yaml --scenario angry-refund-user --json
+pnpm agentlint replay ./agent.agentspec.yaml --scenario angry-refund-user --mermaid
 ```
 
-Runs deterministic path evaluation through the behaviour graph for a named scenario. The report includes the decision path, triggered constraints, selected route, tool eligibility checks, handoff reasoning and a step-by-step execution trace.
+Runs deterministic path evaluation through the behaviour graph for a named scenario. The report includes the decision path, triggered constraints, selected route, rejected routes, branch outcomes, tool eligibility checks, handoff reasoning and a step-by-step execution trace. Use `--mermaid` to generate a visual execution graph for documentation or review.
 
 ### Compile natural language instructions
 
