@@ -383,6 +383,22 @@ Agent Lint is experimental and early-stage. The YAML format, linter rules, packa
 
 Use it today as an engineering assurance tool for review, CI checks and regression detection. Do not treat it as a guarantee of deterministic AI behaviour.
 
+## Web portal
+
+The Agent Lint web portal is a Vite + React application under `apps/web`.
+
+### GitHub Pages deployment
+
+Deployment is handled by [`.github/workflows/deploy-web.yml`](.github/workflows/deploy-web.yml). The workflow runs on every push to `main` and can also be triggered manually via `workflow_dispatch`.
+
+Before the deployment will work, set the GitHub Pages source to **GitHub Actions** in the repository settings under **Settings → Pages → Source**.
+
+The site will be available at:
+
+```
+https://aj-zafar.github.io/AgentLint/
+```
+
 ## Contributing
 
 Contributions are welcome. Good first areas include:
