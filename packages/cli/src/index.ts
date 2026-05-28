@@ -52,17 +52,20 @@ export function createCli(state: CliState, programName = "agentspec"): Command {
     .command("lint")
     .argument("<file>", "AgentSpec YAML file")
     .option("--json", "Emit machine-readable JSON output")
+    .option("--policy <pack...>", "Apply one or more built-in policy packs")
     .description("Lint an AgentSpec YAML file for instruction-engineering issues.")
-    .action(async (file: string, options: { json?: boolean }) => {
+    .action(async (file: string, options: { json?: boolean; policy?: string[] }) => {
       const parsed = await parseForCommand(file, state, "lint", options.json);
       if (!parsed) {
         return;
       }
 
-      const result = lintAgentSpec(parsed.document);
+      const policyPacks = options.policy ?? [];
+      const result = lintAgentSpec(parsed.document, { policyPacks: policyPacks as never[] });
       const payload = {
         command: "lint",
         file,
+        policyPacks,
         success: result.issues.length === 0,
         issueCount: result.issues.length,
         issues: result.issues

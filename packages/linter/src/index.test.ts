@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lintAgentSpec, lintRules, type LintRuleId } from "./index";
+import { builtinPolicyPacks, lintAgentSpec, lintRules, type LintRuleId } from "./index";
 import type { AgentSpecDocument } from "@agentspec/spec";
 
 const baseSpec: AgentSpecDocument = {
@@ -198,6 +198,55 @@ describe("AgentSpec rule-based linter", () => {
     expect(ruleIds(spec)).toContain("no-escalation-path");
   });
 
+
+
+  it("exports built-in policy packs", () => {
+    expect(Object.keys(builtinPolicyPacks).sort()).toEqual([
+      "financial-services",
+      "healthcare",
+      "internal-enterprise",
+      "public-sector-safe"
+    ]);
+  });
+
+  it("applies public-sector-safe policy requirements", () => {
+    const spec: AgentSpecDocument = {
+      ...baseSpec,
+      constraints: {
+        ...baseSpec.constraints,
+        compliance: ["Follow internal policy."],
+        privacy: ["Be careful with data."],
+        escalation: []
+      },
+      routes: [baseSpec.routes[0]],
+      tools: [
+        {
+          name: "raw_record_export",
+          description: "Exports unrestricted records.",
+          allowed_operations: ["export_personal_records"],
+          forbidden_operations: [],
+          requires_auth: true,
+          risk_level: "critical"
+        }
+      ]
+    };
+
+    const issues = lintAgentSpec(spec, { policyPacks: ["public-sector-safe"] }).issues;
+
+    expect(issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ ruleId: "policy-required-constraint" }),
+      expect.objectContaining({ ruleId: "policy-privacy-boundary" }),
+      expect.objectContaining({ ruleId: "policy-escalation-required" }),
+      expect.objectContaining({ ruleId: "policy-forbidden-tool" }),
+      expect.objectContaining({ ruleId: "policy-mandatory-fallback" })
+    ]));
+  });
+
+  it("passes public-sector-safe policy for the public sector example shape", () => {
+    const issues = lintAgentSpec(baseSpec, { policyPacks: ["public-sector-safe"] }).issues;
+
+    expect(issues.filter((issue) => String(issue.ruleId).startsWith("policy-"))).toEqual([]);
+  });
 
   it("has documentation metadata for every rule", () => {
     const requiredFields = ["description", "whyItMatters", "badExample", "goodExample", "suggestedFix"] as const;

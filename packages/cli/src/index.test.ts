@@ -155,6 +155,27 @@ describe("agentspec CLI", () => {
     expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
   });
 
+
+  it("lints with a built-in policy pack", async () => {
+    const result = await runCli(["lint", "examples/public-sector-casework.agentspec.yaml", "--policy", "public-sector-safe"], "agentlint");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("no lint issues");
+  });
+
+  it("reports policy pack findings in JSON output", async () => {
+    const filePath = await writeFixture(
+      "policy-json.agentspec.yaml",
+      validYaml.replace("Fallback to human_support when policy coverage is unclear.", "Use normal support when unclear.")
+    );
+    const result = await runCli(["lint", filePath, "--policy", "public-sector-safe", "--json"], "agentlint");
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(1);
+    expect(parsed.policyPacks).toEqual(["public-sector-safe"]);
+    expect(parsed.issues).toEqual(expect.arrayContaining([expect.objectContaining({ ruleId: "policy-required-constraint" })]));
+  });
+
   it("runs deterministic declared tests without live model calls", async () => {
     const filePath = await writeFixture("test.agentspec.yaml", validYaml);
     const result = await runCli(["test", filePath]);

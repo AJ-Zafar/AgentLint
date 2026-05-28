@@ -401,3 +401,25 @@ When adding rules, prefer:
 - stable paths into the YAML structure
 - actionable suggestions
 - tests for positive and negative cases
+
+## Policy packs
+
+Agent Lint includes experimental built-in policy packs that add organisation or domain-specific lint checks on top of the base linter rules.
+
+Use them with:
+
+```bash
+pnpm agentlint lint ./file.agentspec.yaml --policy public-sector-safe
+pnpm agentlint lint ./file.agentspec.yaml --policy public-sector-safe --json
+```
+
+Built-in packs:
+
+| Policy pack | Focus |
+| --- | --- |
+| `public-sector-safe` | Public sector casework safety, privacy, escalation and fallback expectations. |
+| `financial-services` | Financial services audit, fraud, regulated workflow and compliance review expectations. |
+| `healthcare` | Patient data, clinical review, consent and healthcare escalation expectations. |
+| `internal-enterprise` | Internal enterprise access, confidentiality and ownership review expectations. |
+
+Each pack can require constraints, forbid risky tool capabilities, require escalation language, check privacy boundaries and require fallback routing terms. Policy packs are deterministic and local. They are not a substitute for legal, compliance or security review.

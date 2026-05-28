@@ -42,7 +42,7 @@ The current workspace includes:
 
 - `@agentspec/spec`: TypeScript types, Zod validation and JSON schema generation
 - `@agentspec/parser`: YAML parser and validation wrapper for `.agentspec.yaml` files
-- `@agentspec/linter`: rule-based linter with documented rule metadata
+- `@agentspec/linter`: rule-based linter with documented rule metadata and experimental policy packs
 - `@agentspec/test-runner`: deterministic local route, handoff, tool and assertion checks
 - `@agentspec/diff`: behavioural diff engine for comparing instruction specs
 - `@agentspec/grammar`: structured condition grammar and behaviour graph compilation
@@ -215,6 +215,15 @@ pnpm agentspec lint ./file.agentspec.yaml --json
 ```
 
 Runs the rule-based linter and exits non-zero when issues are found.
+
+### Policy packs
+
+```bash
+pnpm agentlint lint ./file.agentspec.yaml --policy public-sector-safe
+pnpm agentlint lint ./file.agentspec.yaml --policy healthcare --json
+```
+
+Built-in experimental policy packs add reusable domain checks for `public-sector-safe`, `financial-services`, `healthcare` and `internal-enterprise`. Packs can require constraints, forbid tool capabilities, require escalation language, check privacy boundaries and require fallback routing.
 
 ### Test
 

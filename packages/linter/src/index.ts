@@ -14,10 +14,17 @@ export type LintRuleId =
   | "forbidden-operation-not-enforced"
   | "no-escalation-path";
 
+export type PolicyRuleId =
+  | "policy-required-constraint"
+  | "policy-forbidden-tool"
+  | "policy-escalation-required"
+  | "policy-privacy-boundary"
+  | "policy-mandatory-fallback";
+
 export type LintIssueSeverity = "error" | "warning" | "info";
 
 export type LintIssue = {
-  ruleId: LintRuleId;
+  ruleId: LintRuleId | PolicyRuleId;
   severity: LintIssueSeverity;
   message: string;
   path: string;
@@ -42,6 +49,24 @@ export type LintRule = {
   severity: LintIssueSeverity;
   docs: LintRuleDocumentation;
   run: (context: LintContext) => LintIssue[];
+};
+
+
+export type PolicyPackName = "public-sector-safe" | "financial-services" | "healthcare" | "internal-enterprise";
+
+export type PolicyPack = {
+  name: PolicyPackName;
+  description: string;
+  requiredConstraints: string[];
+  forbiddenToolTerms: string[];
+  escalationRequirements: string[];
+  privacyBoundaries: string[];
+  mandatoryFallbackTerms: string[];
+};
+
+export type LintOptions = {
+  rules?: LintRule[];
+  policyPacks?: PolicyPackName[];
 };
 
 type ParsedTarget = { kind: "tool" | "handoff"; name: string };
@@ -151,6 +176,46 @@ export const lintRuleDocumentation: Record<LintRuleId, LintRuleDocumentation> = 
     badExample: "constraints:\n  escalation: []\nhandoffs: []",
     goodExample: "constraints:\n  escalation:\n    - Fallback to human_support when unclear.\nroutes:\n  - target: handoff:human_support",
     suggestedFix: "Define escalation constraints, at least one handoff and a route that targets handoff:<name>."
+  }
+};
+
+
+export const builtinPolicyPacks: Record<PolicyPackName, PolicyPack> = {
+  "public-sector-safe": {
+    name: "public-sector-safe",
+    description: "Baseline safety, privacy and escalation expectations for public sector casework.",
+    requiredConstraints: ["statutory", "casework"],
+    forbiddenToolTerms: ["raw", "export_personal", "delete", "unrestricted"],
+    escalationRequirements: ["senior", "caseworker"],
+    privacyBoundaries: ["protected personal data"],
+    mandatoryFallbackTerms: ["fallback", "unclear"]
+  },
+  "financial-services": {
+    name: "financial-services",
+    description: "Baseline controls for financial services workflows.",
+    requiredConstraints: ["audit", "fraud", "regulated"],
+    forbiddenToolTerms: ["transfer_funds", "approve_credit", "delete_transaction"],
+    escalationRequirements: ["compliance", "review"],
+    privacyBoundaries: ["financial data", "customer data"],
+    mandatoryFallbackTerms: ["fallback", "unclear"]
+  },
+  healthcare: {
+    name: "healthcare",
+    description: "Baseline controls for healthcare and patient-support workflows.",
+    requiredConstraints: ["clinical", "patient", "consent"],
+    forbiddenToolTerms: ["diagnose", "prescribe", "delete_record"],
+    escalationRequirements: ["clinician", "review"],
+    privacyBoundaries: ["patient data", "clinical"],
+    mandatoryFallbackTerms: ["fallback", "unclear"]
+  },
+  "internal-enterprise": {
+    name: "internal-enterprise",
+    description: "Baseline controls for internal enterprise assistants.",
+    requiredConstraints: ["access", "confidential", "policy"],
+    forbiddenToolTerms: ["grant_admin", "delete_user", "export_confidential"],
+    escalationRequirements: ["owner", "review"],
+    privacyBoundaries: ["confidential", "employee"],
+    mandatoryFallbackTerms: ["fallback", "unclear"]
   }
 };
 
@@ -455,13 +520,77 @@ export const lintRules: LintRule[] = [
   }
 ];
 
-export function lintAgentSpec(spec: AgentSpecDocument, rules: LintRule[] = lintRules): LintResult {
+export function lintAgentSpec(spec: AgentSpecDocument, optionsOrRules: LintRule[] | LintOptions = lintRules): LintResult {
   const context = createContext(spec);
-  const issues = rules.flatMap((rule) => rule.run(context));
+  const rules = Array.isArray(optionsOrRules) ? optionsOrRules : optionsOrRules.rules ?? lintRules;
+  const policyPacks = Array.isArray(optionsOrRules) ? [] : optionsOrRules.policyPacks ?? [];
+  const issues = [
+    ...rules.flatMap((rule) => rule.run(context)),
+    ...policyPacks.flatMap((packName) => lintPolicyPack(spec, builtinPolicyPacks[packName]))
+  ];
 
   return {
     issues: issues.sort(compareIssues)
   };
+}
+
+
+function lintPolicyPack(spec: AgentSpecDocument, pack: PolicyPack): LintIssue[] {
+  if (!pack) return [];
+  const issues: LintIssue[] = [];
+  const allConstraintText = normalizePolicyText([
+    ...spec.constraints.safety,
+    ...spec.constraints.privacy,
+    ...spec.constraints.compliance,
+    ...spec.constraints.escalation,
+    ...spec.constraints.data_access
+  ].join(" "));
+  const privacyText = normalizePolicyText(spec.constraints.privacy.join(" "));
+  const escalationText = normalizePolicyText(spec.constraints.escalation.join(" "));
+  const routeText = normalizePolicyText(spec.routes.map((route) => `${route.name} ${route.description} ${route.triggers.join(" ")} ${route.target}`).join(" "));
+
+  for (const required of pack.requiredConstraints) {
+    if (!allConstraintText.includes(normalizePolicyText(required))) {
+      issues.push(policyIssue("policy-required-constraint", "error", "constraints", pack, `Required policy constraint is missing: ${required}.`, `Add a ${required} constraint for the ${pack.name} policy pack.`));
+    }
+  }
+
+  for (const boundary of pack.privacyBoundaries) {
+    if (!privacyText.includes(normalizePolicyText(boundary))) {
+      issues.push(policyIssue("policy-privacy-boundary", "error", "constraints.privacy", pack, `Required privacy boundary is missing: ${boundary}.`, `Add an explicit privacy boundary covering ${boundary}.`));
+    }
+  }
+
+  for (const requirement of pack.escalationRequirements) {
+    if (!escalationText.includes(normalizePolicyText(requirement))) {
+      issues.push(policyIssue("policy-escalation-required", "error", "constraints.escalation", pack, `Required escalation requirement is missing: ${requirement}.`, `Add escalation language covering ${requirement}.`));
+    }
+  }
+
+  for (const term of pack.mandatoryFallbackTerms) {
+    if (!routeText.includes(normalizePolicyText(term))) {
+      issues.push(policyIssue("policy-mandatory-fallback", "error", "routes", pack, `Mandatory fallback routing term is missing: ${term}.`, `Add a fallback route that covers ${term} situations.`));
+    }
+  }
+
+  for (const [index, tool] of spec.tools.entries()) {
+    const toolText = normalizePolicyText(`${tool.name} ${tool.description} ${tool.allowed_operations.join(" ")}`);
+    for (const forbidden of pack.forbiddenToolTerms) {
+      if (toolText.includes(normalizePolicyText(forbidden))) {
+        issues.push(policyIssue("policy-forbidden-tool", "error", `tools.${index}`, pack, `Tool "${tool.name}" appears to use forbidden policy capability: ${forbidden}.`, `Remove the capability or document an approved exception outside the Agent Lint spec.`));
+      }
+    }
+  }
+
+  return issues;
+}
+
+function policyIssue(ruleId: PolicyRuleId, severity: LintIssueSeverity, path: string, pack: PolicyPack, message: string, suggestion: string): LintIssue {
+  return { ruleId, severity, path, message: `[${pack.name}] ${message}`, suggestion, confidence: 0.9 };
+}
+
+function normalizePolicyText(value: string): string {
+  return value.toLowerCase().replace(/[_-]+/g, " ").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function createContext(spec: AgentSpecDocument): LintContext {

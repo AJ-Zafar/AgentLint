@@ -36,6 +36,13 @@ pnpm agentspec lint ./file.agentspec.yaml --json
 
 Runs the rule-based linter and prints grouped diagnostics. The process exits non-zero when lint issues are found.
 
+Apply built-in policy packs with `--policy <pack>`:
+
+```bash
+pnpm agentlint lint ./file.agentspec.yaml --policy public-sector-safe
+pnpm agentlint lint ./file.agentspec.yaml --policy financial-services --json
+```
+
 ## `test`
 
 ```bash
