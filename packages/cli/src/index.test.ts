@@ -223,6 +223,45 @@ describe("agentspec CLI", () => {
     expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
   });
 
+
+  it("audits a Copilot Studio solution export", async () => {
+    const result = await runCli([
+      "copilot-audit",
+      "--spec",
+      "examples/copilot-studio-agent.agentspec.yaml",
+      "--solution",
+      "packages/copilot-studio-audit/fixtures/fake-solution.zip"
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Copilot Studio Audit Report");
+    expect(result.stdout).toContain("Status: experimental");
+    expect(result.stdout).toContain("Expected but missing topics");
+    expect(result.stdout).toContain("connector_review");
+    expect(result.stdout).toContain("High-risk tools not documented in AgentSpec");
+    expect(result.stdout).toContain("delete_environment");
+  });
+
+  it("emits deterministic JSON for copilot-audit", async () => {
+    const result = await runCli([
+      "copilot-audit",
+      "--spec",
+      "examples/copilot-studio-agent.agentspec.yaml",
+      "--solution",
+      "packages/copilot-studio-audit/fixtures/fake-solution.zip",
+      "--json"
+    ]);
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(parsed.command).toBe("copilot-audit");
+    expect(parsed.specFile).toBe("examples/copilot-studio-agent.agentspec.yaml");
+    expect(parsed.solutionFile).toBe("packages/copilot-studio-audit/fixtures/fake-solution.zip");
+    expect(parsed.report.findings.expectedMissingTopics).toEqual(["connector_review", "fallback_maker_admin_review"]);
+    expect(parsed.report.findings.highRiskToolsNotDocumentedInAgentSpec).toEqual([{ name: "delete_environment", riskLevel: "critical" }]);
+    expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+  });
+
   it("diffs two AgentSpec YAML files with a behavioral report", async () => {
     const oldPath = await writeFixture("old.agentspec.yaml", validYaml);
     const newPath = await writeFixture(

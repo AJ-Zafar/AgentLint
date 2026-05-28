@@ -1,0 +1,5 @@
+{
+  "kind": "flow",
+  "name": "inspect_agent_config_flow",
+  "action": "inspect_agent_config"
+}

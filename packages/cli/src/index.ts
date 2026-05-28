@@ -4,6 +4,7 @@ import { lintAgentSpec } from "@agentspec/linter";
 import { runAgentSpecTests, type TestRunResult } from "@agentspec/test-runner";
 import { diffAgentSpecs, type BehavioralDiffResult } from "@agentspec/diff";
 import { convertAgentSpecToCopilotStudioPlan } from "@agentspec/copilot-studio";
+import { auditCopilotStudioSolution, type CopilotStudioAuditReport } from "@agentspec/copilot-studio-audit";
 
 export type CliResult = {
   exitCode: number;
@@ -107,6 +108,23 @@ export function createCli(state: CliState): Command {
       const markdown = convertAgentSpecToCopilotStudioPlan(parsed.document);
       const payload = { command: "copilot-plan", file, format: "markdown", markdown };
       state.stdout.push(options.json ? jsonLine(payload) : markdown);
+    });
+
+  program
+    .command("copilot-audit")
+    .requiredOption("--spec <file>", "AgentSpec YAML file")
+    .requiredOption("--solution <file>", "Microsoft Power Platform solution export zip")
+    .option("--json", "Emit machine-readable JSON output")
+    .description("Experimentally audit a local Copilot Studio solution export against an AgentSpec file.")
+    .action(async (options: { spec: string; solution: string; json?: boolean }) => {
+      const parsed = await parseForCommand(options.spec, state, "copilot-audit", options.json);
+      if (!parsed) {
+        return;
+      }
+
+      const report = await auditCopilotStudioSolution({ spec: parsed.document, solutionPath: options.solution });
+      const payload = { command: "copilot-audit", specFile: options.spec, solutionFile: options.solution, report };
+      state.stdout.push(options.json ? jsonLine(payload) : formatCopilotAudit(report));
     });
 
   program
@@ -263,6 +281,59 @@ function formatTestRun(result: TestRunResult): string {
 
 function formatList(values: string[]): string {
   return values.length === 0 ? "none" : values.join(", ");
+}
+
+function formatCopilotAudit(report: CopilotStudioAuditReport): string {
+  const lines = [
+    "Copilot Studio Audit Report",
+    "Status: experimental",
+    "No Microsoft APIs are called. Solution internals may change.",
+    `Solution: ${report.solutionPath}`,
+    `Findings: ${report.summary.findingCount}`,
+    "",
+    "Extracted components",
+    `  Topics: ${formatList(report.extracted.topics)}`,
+    `  Actions: ${formatList(report.extracted.actions.map((action) => action.riskLevel ? `${action.name} (${action.riskLevel})` : action.name))}`,
+    `  Flows: ${formatList(report.extracted.flows)}`,
+    `  Knowledge: ${formatList(report.extracted.knowledgeReferences)}`,
+    `  Handoffs: ${formatList(report.extracted.handoffs)}`,
+    ""
+  ];
+
+  appendFindingList(lines, "Expected but missing topics", report.findings.expectedMissingTopics);
+  appendFindingList(lines, "Unexpected topics", report.findings.unexpectedTopics);
+  appendFindingList(lines, "Expected but missing actions/tools", report.findings.expectedMissingActions);
+  appendFindingList(
+    lines,
+    "High-risk tools not documented in AgentSpec",
+    report.findings.highRiskToolsNotDocumentedInAgentSpec.map((tool) => tool.riskLevel ? `${tool.name} (${tool.riskLevel})` : tool.name)
+  );
+  appendFindingList(lines, "Missing fallback/handoff coverage", report.findings.missingFallbackHandoffCoverage);
+  appendFindingList(
+    lines,
+    "Tests referencing missing routes/actions",
+    report.findings.testsReferencingMissingRoutesOrActions.map((test) => {
+      const parts = [
+        ...test.missingRoutes.map((route) => `route:${route}`),
+        ...test.missingActions.map((action) => `action:${action}`)
+      ];
+      return `${test.testName} (${parts.join(", ")})`;
+    })
+  );
+
+  return `${lines.join("\n").trimEnd()}\n`;
+}
+
+function appendFindingList(lines: string[], title: string, values: string[]): void {
+  lines.push(title);
+  if (values.length === 0) {
+    lines.push("  - none", "");
+    return;
+  }
+  for (const value of values) {
+    lines.push(`  - ${value}`);
+  }
+  lines.push("");
 }
 
 function formatBehavioralDiff(result: BehavioralDiffResult): string {

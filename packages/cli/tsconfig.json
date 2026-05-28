@@ -11,7 +11,8 @@
     { "path": "../linter" },
     { "path": "../test-runner" },
     { "path": "../diff" },
-    { "path": "../copilot-studio" }
+    { "path": "../copilot-studio" },
+    { "path": "../copilot-studio-audit" }
   ],
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]

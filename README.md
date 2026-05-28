@@ -40,6 +40,7 @@ AgentSpec currently includes:
 - behavioural diffs between two AgentSpec files
 - a VS Code extension package for inline diagnostics and commands
 - an experimental Copilot Studio planning mapper
+- an experimental local Copilot Studio solution audit tool
 
 Everything is local-first. No Microsoft APIs, model APIs or external services are called by the core tooling.
 
@@ -108,6 +109,7 @@ Generate an experimental Copilot Studio implementation plan:
 
 ```bash
 pnpm agentspec copilot-plan examples/copilot-studio-agent.agentspec.yaml
+pnpm agentspec copilot-audit --spec examples/copilot-studio-agent.agentspec.yaml --solution packages/copilot-studio-audit/fixtures/fake-solution.zip
 ```
 
 ## Example AgentSpec YAML
@@ -259,6 +261,15 @@ pnpm agentspec copilot-plan ./file.agentspec.yaml --json
 ```
 
 Produces experimental markdown that maps AgentSpec concepts to Microsoft Copilot Studio planning concepts: topics, actions, knowledge sources, handoff rules, authentication assumptions and candidate Power Automate flows. It does not call Microsoft APIs and does not generate Copilot Studio export packages.
+
+### Copilot Studio audit
+
+```bash
+pnpm agentspec copilot-audit --spec ./file.agentspec.yaml --solution ./solution.zip
+pnpm agentspec copilot-audit --spec ./file.agentspec.yaml --solution ./solution.zip --json
+```
+
+Experimentally compares an AgentSpec file with a local Power Platform solution export. It inspects likely Copilot Studio topics, actions, flows, knowledge references and handoff patterns. It does not call Microsoft APIs and does not require Dataverse access.
 
 ## Linting examples
 

@@ -38,3 +38,19 @@ This integration is deliberately conservative:
 - no Copilot Studio export package is generated
 
 The generated plan should be reviewed by someone who understands the target environment, data policies and operational constraints.
+
+## Auditing solution exports
+
+AgentSpec also includes an experimental local audit package for comparing an AgentSpec file with a Power Platform solution export containing a Copilot Studio agent.
+
+```bash
+pnpm agentspec copilot-audit \
+  --spec examples/copilot-studio-agent.agentspec.yaml \
+  --solution packages/copilot-studio-audit/fixtures/fake-solution.zip
+```
+
+Use `--json` for CI-friendly output.
+
+The audit command reads the local zip file, looks for likely bot topics, actions, flows, knowledge references and handoff patterns, then reports gaps against the AgentSpec. It does not call Microsoft APIs, does not require Dataverse access and does not generate or modify solution packages.
+
+Because Copilot Studio solution internals may change, this should be treated as best-effort review support rather than an authoritative Microsoft package validator.

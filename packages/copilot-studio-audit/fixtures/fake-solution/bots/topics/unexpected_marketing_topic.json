@@ -1,0 +1,8 @@
+{
+  "kind": "topic",
+  "name": "unexpected_marketing_topic",
+  "triggerPhrases": [
+    "campaign",
+    "marketing"
+  ]
+}
