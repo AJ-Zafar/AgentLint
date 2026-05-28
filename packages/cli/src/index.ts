@@ -2,7 +2,7 @@ import { Command, CommanderError } from "commander";
 import { AgentSpecParseError, parseAgentSpecFile, type ParsedAgentSpec } from "@agentspec/parser";
 import { lintAgentSpec } from "@agentspec/linter";
 import { runAgentSpecTests, type TestRunResult } from "@agentspec/test-runner";
-import { diffAgentSpecs, type BehavioralDiffResult } from "@agentspec/diff";
+import { diffAgentSpecs, simulateAgentSpecDiff, type BehavioralDiffResult, type SimulatedDiffReport } from "@agentspec/diff";
 import { compileAgentSpecGraph, type GraphCompilationResult } from "@agentspec/grammar";
 import { compileInstructionsToAgentSpec } from "@agentspec/compiler";
 import { readFile } from "node:fs/promises";
@@ -160,6 +160,22 @@ export function createCli(state: CliState, programName = "agentspec"): Command {
       const report = await auditCopilotStudioSolution({ spec: parsed.document, solutionPath: options.solution });
       const payload = { command: "copilot-audit", specFile: options.spec, solutionFile: options.solution, report };
       state.stdout.push(options.json ? jsonLine(payload) : formatCopilotAudit(report));
+    });
+
+  program
+    .command("simulate-diff")
+    .argument("<oldFile>", "Original Agent Lint YAML file")
+    .argument("<newFile>", "Updated Agent Lint YAML file")
+    .option("--json", "Emit machine-readable JSON output")
+    .description("Simulate behavioural impact between two Agent Lint specs.")
+    .action(async (oldFile: string, newFile: string, options: { json?: boolean }) => {
+      const oldSpec = await parseForCommand(oldFile, state, "simulate-diff", options.json);
+      if (!oldSpec) return;
+      const newSpec = await parseForCommand(newFile, state, "simulate-diff", options.json);
+      if (!newSpec) return;
+      const report = simulateAgentSpecDiff(oldSpec.document, newSpec.document);
+      const payload = { command: "simulate-diff", oldFile, newFile, report };
+      state.stdout.push(options.json ? jsonLine(payload) : formatSimulatedDiff(report));
     });
 
   program
@@ -417,6 +433,47 @@ function appendFindingList(lines: string[], title: string, values: string[]): vo
     lines.push(`  - ${value}`);
   }
   lines.push("");
+}
+
+function formatSimulatedDiff(report: SimulatedDiffReport): string {
+  const lines = [
+    "Agent Lint Simulated Behavioural Diff",
+    `Behavioural impact: ${report.impact}`,
+    `Scenarios: ${report.summary.changedScenarioCount}/${report.summary.totalScenarios} changed (${Math.round(report.summary.routeChangeRate * 100)}%)`,
+    "",
+    "Route selection probability changes",
+    ...formatObjects(report.routeSelectionChanges.map((change) => `${change.route}: ${change.beforeProbability} -> ${change.afterProbability}`)),
+    "",
+    "Escalation frequency changes",
+    `  - ${report.escalationFrequencyChange.before} -> ${report.escalationFrequencyChange.after} (delta ${report.escalationFrequencyChange.delta})`,
+    "",
+    "Tool eligibility changes",
+    ...formatObjects(report.toolEligibilityChanges.map((change) => `${change.tool}: ${change.beforeEligible} -> ${change.afterEligible}`)),
+    "",
+    "Fallback invocation changes",
+    `  - ${report.fallbackInvocationChange.before} -> ${report.fallbackInvocationChange.after} (delta ${report.fallbackInvocationChange.delta})`,
+    "",
+    "Constraint precedence changes",
+    ...formatObjects(report.constraintPrecedenceChanges),
+    "",
+    "Impacted routes",
+    ...formatObjects(report.impactedRoutes),
+    "",
+    "Changed paths",
+    ...formatObjects(report.changedPaths),
+    "",
+    "Newly unreachable states",
+    ...formatObjects(report.newlyUnreachableStates),
+    "",
+    "Likely regression areas",
+    ...formatObjects(report.likelyRegressionAreas),
+    ""
+  ];
+  return `${lines.join("\n").trimEnd()}\n`;
+}
+
+function formatObjects(values: string[]): string[] {
+  return values.length === 0 ? ["  - none"] : values.map((value) => `  - ${value}`);
 }
 
 function formatBehavioralDiff(result: BehavioralDiffResult): string {

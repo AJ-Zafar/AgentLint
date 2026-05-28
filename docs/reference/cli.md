@@ -91,3 +91,12 @@ pnpm agentlint compile ./instructions.md
 ```
 
 Experimentally compiles loose natural language instructions into structured Agent Lint YAML using deterministic heuristics. The output includes compiler confidence metadata and unresolved ambiguity warnings. No external LLM APIs are called.
+
+## `simulate-diff`
+
+```bash
+pnpm agentlint simulate-diff ./old.agentspec.yaml ./new.agentspec.yaml
+pnpm agentlint simulate-diff ./old.agentspec.yaml ./new.agentspec.yaml --json
+```
+
+Runs deterministic scenario generation over two specs and reports behavioural simulation changes, including route selection, escalation frequency, tool eligibility, fallback invocation, constraint precedence, impacted routes and likely regression areas.

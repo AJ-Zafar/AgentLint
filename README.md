@@ -225,6 +225,15 @@ pnpm agentspec test ./file.agentspec.yaml --json
 
 Runs deterministic local checks over route, handoff, expected tool calls, forbidden tool calls and simple assertions.
 
+### Simulate diff
+
+```bash
+pnpm agentlint simulate-diff ./old.agentspec.yaml ./new.agentspec.yaml
+pnpm agentlint simulate-diff ./old.agentspec.yaml ./new.agentspec.yaml --json
+```
+
+Runs deterministic scenario generation over old and new specs to estimate route selection changes, escalation frequency changes, tool eligibility changes, fallback invocation changes and constraint precedence changes. The report highlights impacted routes, changed paths, newly unreachable states and likely regression areas.
+
 ### Diff
 
 ```bash

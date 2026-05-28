@@ -310,6 +310,37 @@ describe("agentspec CLI", () => {
     expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
   });
 
+
+  it("simulates behavioural diff changes", async () => {
+    const result = await runCli([
+      "simulate-diff",
+      "packages/diff/fixtures/old.agentspec.yaml",
+      "packages/diff/fixtures/new.agentspec.yaml"
+    ], "agentlint");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Agent Lint Simulated Behavioural Diff");
+    expect(result.stdout).toContain("Behavioural impact: breaking");
+    expect(result.stdout).toContain("Likely regression areas");
+    expect(result.stdout).toContain("fallback coverage");
+  });
+
+  it("emits deterministic JSON for simulate-diff", async () => {
+    const result = await runCli([
+      "simulate-diff",
+      "packages/diff/fixtures/old.agentspec.yaml",
+      "packages/diff/fixtures/new.agentspec.yaml",
+      "--json"
+    ], "agentlint");
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(parsed.command).toBe("simulate-diff");
+    expect(parsed.report.impact).toBe("breaking");
+    expect(parsed.report.summary.changedScenarioCount).toBeGreaterThan(0);
+    expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+  });
+
   it("diffs two AgentSpec YAML files with a behavioral report", async () => {
     const oldPath = await writeFixture("old.agentspec.yaml", validYaml);
     const newPath = await writeFixture(
