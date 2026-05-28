@@ -1,0 +1,117 @@
+agent:
+  name: Runner Fixture Agent
+  description: Exercises deterministic test-runner behavior.
+  version: 1.0.0
+  owner: qa
+  domain: test-fixtures
+persona:
+  role: Deterministic router
+  tone: neutral
+  verbosity: concise
+  style_rules:
+    - Keep output deterministic.
+instructions:
+  primary_goal: Route fixture requests deterministically.
+  secondary_goals:
+    - Exercise handoff and tool expectations.
+  do:
+    - Match route triggers before selecting tools.
+  do_not:
+    - Do not call delete_account.
+constraints:
+  safety:
+    - Escalate security incidents to security_handoff.
+  privacy:
+    - Never disclose protected data.
+  compliance:
+    - Follow fixture policy.
+  escalation:
+    - Fallback to security_handoff for security incidents.
+  data_access:
+    - Only call allowed fixture tools.
+tools:
+  - name: account_lookup
+    description: Reads account data.
+    allowed_operations:
+      - read_account
+    forbidden_operations:
+      - delete_account
+    requires_auth: true
+    risk_level: medium
+  - name: security_audit
+    description: Reads security audit events.
+    allowed_operations:
+      - read_security_events
+    forbidden_operations: []
+    requires_auth: true
+    risk_level: high
+routes:
+  - name: billing_support
+    description: Handles invoice, refund, subscription, and payment questions.
+    triggers:
+      - invoice
+      - refund
+      - subscription
+      - payment
+    target: tool:account_lookup
+    priority: 10
+  - name: security_review
+    description: Handles suspicious login, compromised account, and security incidents.
+    triggers:
+      - suspicious login
+      - compromised account
+      - security incident
+    target: tool:security_audit
+    priority: 1
+  - name: fallback_security_handoff
+    description: Fallback route for unclear security incidents and policy gaps.
+    triggers:
+      - fallback
+      - unclear
+      - policy gap
+    target: handoff:security_handoff
+    priority: 100
+handoffs:
+  - name: security_handoff
+    condition: Security incident, compromised account, or suspicious login requires human review.
+    destination: queue:security
+    required_context:
+      - account_id
+      - incident_summary
+tests:
+  - name: billing scenario passes
+    input: I need help with a refund for my invoice.
+    expected_route: billing_support
+    expected_tool_calls:
+      - account_lookup
+    forbidden_tool_calls:
+      - security_audit
+    assertions:
+      - route is billing_support
+      - calls tool account_lookup
+      - does not call tool security_audit
+      - input contains refund
+  - name: security handoff passes
+    input: There was a suspicious login and my account may be compromised.
+    expected_route: security_review
+    expected_handoff: security_handoff
+    expected_tool_calls:
+      - security_audit
+    forbidden_tool_calls:
+      - account_lookup
+    assertions:
+      - route is security_review
+      - handoff is security_handoff
+      - calls tool security_audit
+  - name: intentionally fails expected details
+    input: Please explain my subscription invoice.
+    expected_route: security_review
+    expected_handoff: security_handoff
+    expected_tool_calls:
+      - security_audit
+    forbidden_tool_calls:
+      - account_lookup
+    assertions:
+      - route is security_review
+      - calls tool security_audit
+      - input contains suspicious

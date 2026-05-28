@@ -3,13 +3,11 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "tsBuildInfoFile": "./cli.tsbuildinfo"
+    "tsBuildInfoFile": "./test-runner.tsbuildinfo"
   },
   "references": [
     { "path": "../spec" },
-    { "path": "../parser" },
-    { "path": "../linter" },
-    { "path": "../test-runner" }
+    { "path": "../parser" }
   ],
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]

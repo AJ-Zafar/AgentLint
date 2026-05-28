@@ -9,6 +9,7 @@ This project is infrastructure for instruction engineering, not a chatbot. All c
 - `@agentspec/spec` - TypeScript types, JSON schema, and Zod runtime validation.
 - `@agentspec/parser` - Loads `.agentspec.yaml` files and returns typed documents.
 - `@agentspec/linter` - Finds common instruction-engineering issues.
+- `@agentspec/test-runner` - Runs deterministic local test scenarios without LLM calls.
 - `@agentspec/cli` - Commander-based CLI exposing `validate`, `lint`, `test`, and `diff`.
 
 ## Commands
@@ -23,6 +24,10 @@ pnpm agentspec lint examples/customer-support.agentspec.yaml
 pnpm agentspec test examples/customer-support.agentspec.yaml
 pnpm agentspec diff examples/customer-support.agentspec.yaml examples/copilot-studio-agent.agentspec.yaml
 ```
+
+## Deterministic tests
+
+`agentspec test` evaluates each YAML test scenario locally without model calls. The runner matches input text against route triggers, infers the likely route, handoff, and tool calls, checks expected and forbidden tool calls, evaluates simple assertions such as `route is <name>`, `handoff is <name>`, `calls tool <name>`, `does not call tool <name>`, and `input contains <text>`, then reports passed tests, failed tests, reasons, expected vs actual values, and a summary score.
 
 ## AgentSpec v1 YAML shape
 

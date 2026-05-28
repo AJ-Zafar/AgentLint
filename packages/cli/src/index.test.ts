@@ -71,7 +71,9 @@ tests:
       - account_lookup
     forbidden_tool_calls: []
     assertions:
-      - Does not ask for full payment card details.
+      - route is billing_support
+      - handoff is human_support
+      - calls tool account_lookup
 `;
 
 const lintYaml = validYaml.replace("target: tool:account_lookup", "target: tool:missing_tool");
@@ -109,7 +111,9 @@ describe("agentspec CLI", () => {
     const result = await runCli(["test", filePath]);
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("1 passed");
+    expect(result.stdout).toContain("AgentSpec Test Results");
+    expect(result.stdout).toContain("Passed (1)");
+    expect(result.stdout).toContain("Summary: 1/1 passed, 0 failed, score 100%");
   });
 
   it("fails deterministic declared tests when a defined expected route does not match the simulated route", async () => {
@@ -124,7 +128,10 @@ describe("agentspec CLI", () => {
     const result = await runCli(["test", filePath]);
 
     expect(result.exitCode).toBe(1);
-    expect(result.stdout).toContain('expected route "technical_support" but simulated "billing_support"');
+    expect(result.stdout).toContain("Failed (1)");
+    expect(result.stdout).toContain("Reason: route-mismatch");
+    expect(result.stdout).toContain('Expected: "technical_support"');
+    expect(result.stdout).toContain('Actual: "billing_support"');
   });
 
   it("diffs two AgentSpec YAML files", async () => {

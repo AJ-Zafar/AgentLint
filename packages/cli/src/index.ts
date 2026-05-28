@@ -1,7 +1,7 @@
 import { Command, CommanderError } from "commander";
 import { parseAgentSpecFile } from "@agentspec/parser";
 import { lintAgentSpec } from "@agentspec/linter";
-import type { AgentSpecDocument } from "@agentspec/spec";
+import { runAgentSpecTests, type TestRunResult } from "@agentspec/test-runner";
 
 export type CliResult = {
   exitCode: number;
@@ -59,14 +59,10 @@ export function createCli(state: CliState): Command {
     .description("Run deterministic declared AgentSpec tests without live model calls.")
     .action(async (file: string) => {
       const parsed = await parseAgentSpecFile(file);
-      const result = runDeclaredTests(parsed.document);
+      const result = runAgentSpecTests(parsed.document);
 
-      for (const failure of result.failures) {
-        state.stdout.push(`fail ${failure.id}: ${failure.message}\n`);
-      }
-
-      state.stdout.push(`${result.passed} passed, ${result.failed} failed\n`);
-      if (result.failed > 0) {
+      state.stdout.push(formatTestRun(result));
+      if (result.summary.failed > 0) {
         state.exitCode = 1;
       }
     });
@@ -150,175 +146,39 @@ export async function runCli(args: string[]): Promise<CliResult> {
   };
 }
 
-type DeclaredTestFailure = {
-  id: string;
-  message: string;
-};
+function formatTestRun(result: TestRunResult): string {
+  const lines: string[] = ["AgentSpec Test Results"];
+  const passed = result.tests.filter((test) => test.passed);
+  const failed = result.tests.filter((test) => !test.passed);
 
-type DeclaredTestResult = {
-  passed: number;
-  failed: number;
-  failures: DeclaredTestFailure[];
-};
-
-type SimulationResult = {
-  route?: AgentSpecDocument["routes"][number];
-  handoff?: AgentSpecDocument["handoffs"][number];
-  toolCalls: string[];
-};
-
-export function runDeclaredTests(spec: AgentSpecDocument): DeclaredTestResult {
-  const routeNames = new Set(spec.routes.map((route) => route.name));
-  const handoffNames = new Set(spec.handoffs.map((handoff) => handoff.name));
-  const toolNames = new Set(spec.tools.map((tool) => tool.name));
-  const failures: DeclaredTestFailure[] = [];
-
-  for (const test of spec.tests ?? []) {
-    const messages: string[] = [];
-    const simulation = simulateAgentSpec(spec, test.input);
-    const simulatedRouteName = simulation.route?.name ?? "none";
-    const simulatedHandoffName = simulation.handoff?.name ?? "none";
-    const simulatedToolCalls = new Set(simulation.toolCalls);
-
-    if (test.expected_route) {
-      if (!routeNames.has(test.expected_route)) {
-        messages.push(`expected route "${test.expected_route}" is not defined`);
-      } else if (simulation.route?.name !== test.expected_route) {
-        messages.push(`expected route "${test.expected_route}" but simulated "${simulatedRouteName}"`);
-      }
-    }
-
-    if (test.expected_handoff) {
-      if (!handoffNames.has(test.expected_handoff)) {
-        messages.push(`expected handoff "${test.expected_handoff}" is not defined`);
-      } else if (simulation.handoff?.name !== test.expected_handoff) {
-        messages.push(`expected handoff "${test.expected_handoff}" but simulated "${simulatedHandoffName}"`);
-      }
-    }
-
-    for (const toolName of test.expected_tool_calls) {
-      if (!toolNames.has(toolName)) {
-        messages.push(`expected tool "${toolName}" is not defined`);
-      } else if (!simulatedToolCalls.has(toolName)) {
-        messages.push(`expected tool "${toolName}" but simulated calls were ${formatList(simulation.toolCalls)}`);
-      }
-    }
-
-    for (const toolName of test.forbidden_tool_calls) {
-      if (!toolNames.has(toolName)) {
-        messages.push(`forbidden tool "${toolName}" is not defined`);
-      } else if (simulatedToolCalls.has(toolName)) {
-        messages.push(`forbidden tool "${toolName}" was simulated`);
-      }
-    }
-
-    if (messages.length > 0) {
-      failures.push({
-        id: test.name,
-        message: messages.join("; ")
-      });
+  if (passed.length > 0) {
+    lines.push("", `Passed (${passed.length})`);
+    for (const test of passed) {
+      lines.push(`  - ${test.name}`);
+      lines.push(
+        `    route=${test.actual.route ?? "none"}, handoff=${test.actual.handoff ?? "none"}, tools=${formatList(test.actual.toolCalls)}`
+      );
     }
   }
 
-  const total = spec.tests?.length ?? 0;
-  return {
-    passed: total - failures.length,
-    failed: failures.length,
-    failures
-  };
-}
-
-function simulateAgentSpec(spec: AgentSpecDocument, input: string): SimulationResult {
-  const route = simulateRoute(spec, input);
-  const target = route ? parseTarget(route.target) : undefined;
-  const targetTool = target?.kind === "tool" ? spec.tools.find((tool) => tool.name === target.name) : undefined;
-  const targetHandoff = target?.kind === "handoff" ? spec.handoffs.find((handoff) => handoff.name === target.name) : undefined;
-  const handoff = targetHandoff ?? simulateHandoff(spec, input, route);
-  const toolCalls = targetTool ? [targetTool.name] : [];
-
-  return { route, handoff, toolCalls };
-}
-
-function simulateRoute(spec: AgentSpecDocument, input: string): AgentSpecDocument["routes"][number] | undefined {
-  const inputTokens = tokenize(input);
-  const rankedRoutes = [...spec.routes].sort((a, b) => a.priority - b.priority);
-  let bestRoute: AgentSpecDocument["routes"][number] | undefined;
-  let bestScore = 0;
-
-  for (const route of rankedRoutes) {
-    const routeTokens = tokenize(`${route.name} ${route.description} ${route.triggers.join(" ")}`);
-    const score = [...inputTokens].filter((token) => routeTokens.has(token)).length;
-
-    if (score > bestScore) {
-      bestRoute = route;
-      bestScore = score;
+  if (failed.length > 0) {
+    lines.push("", `Failed (${failed.length})`);
+    for (const test of failed) {
+      lines.push(`  - ${test.name}`);
+      for (const failure of test.failures) {
+        lines.push(`    Reason: ${failure.reason}`);
+        lines.push(`    Expected: ${formatValue(failure.expected)}`);
+        lines.push(`    Actual: ${formatValue(failure.actual)}`);
+      }
     }
   }
 
-  return bestScore > 0 ? bestRoute : undefined;
-}
-
-function simulateHandoff(
-  spec: AgentSpecDocument,
-  input: string,
-  route?: AgentSpecDocument["routes"][number]
-): AgentSpecDocument["handoffs"][number] | undefined {
-  const inputTokens = tokenize(`${input} ${route?.description ?? ""} ${route?.triggers.join(" ") ?? ""}`);
-  let bestHandoff: AgentSpecDocument["handoffs"][number] | undefined;
-  let bestScore = 0;
-
-  for (const handoff of spec.handoffs) {
-    const handoffTokens = tokenize(`${handoff.name} ${handoff.condition}`);
-    const score = [...inputTokens].filter((token) => handoffTokens.has(token)).length;
-
-    if (score > bestScore) {
-      bestHandoff = handoff;
-      bestScore = score;
-    }
-  }
-
-  return bestScore > 0 ? bestHandoff : undefined;
-}
-
-function parseTarget(target: string): { kind: "tool" | "handoff"; name: string } | undefined {
-  const [kind, ...rest] = target.split(":");
-  const name = rest.join(":").trim();
-
-  if ((kind === "tool" || kind === "handoff") && name.length > 0) {
-    return { kind, name };
-  }
-
-  return undefined;
-}
-
-function tokenize(value: string): Set<string> {
-  const stopWords = new Set([
-    "a",
-    "about",
-    "an",
-    "and",
-    "are",
-    "asks",
-    "can",
-    "for",
-    "i",
-    "is",
-    "latest",
-    "my",
-    "of",
-    "or",
-    "the",
-    "this",
-    "to"
-  ]);
-
-  return new Set(
-    value
-      .toLowerCase()
-      .split(/[^a-z0-9]+/)
-      .map((token) => token.replace(/s$/, ""))
-      .filter((token) => token.length > 2 && !stopWords.has(token))
+  lines.push(
+    "",
+    `Summary: ${result.summary.passed}/${result.summary.total} passed, ${result.summary.failed} failed, score ${result.summary.score}%`
   );
+
+  return `${lines.join("\n")}\n`;
 }
 
 function formatList(values: string[]): string {

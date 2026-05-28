@@ -93,5 +93,7 @@ tests:
       - account_lookup
     forbidden_tool_calls: []
     assertions:
-      - Does not ask for full payment card details.
-      - Explains that refund approval may require human review.
+      - route is billing_support
+      - handoff is human_support
+      - calls tool account_lookup
+      - input contains refund

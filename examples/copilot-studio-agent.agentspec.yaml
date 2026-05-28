@@ -100,5 +100,7 @@ tests:
       - inspect_agent_config
     forbidden_tool_calls: []
     assertions:
-      - Does not claim readiness without inspecting local configuration.
-      - Names administrator review when publish authority is unclear.
+      - route is deployment_readiness
+      - handoff is maker_admin_review
+      - calls tool inspect_agent_config
+      - input contains publish
