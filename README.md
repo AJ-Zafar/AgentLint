@@ -1,96 +1,74 @@
-# AgentSpec
+# Agent Lint
 
 [![Status: Experimental](https://img.shields.io/badge/status-experimental-orange.svg)](#status-experimental) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![CI](https://github.com/AJ-Zafar/AgentLint/actions/workflows/ci.yml/badge.svg)](https://github.com/AJ-Zafar/AgentLint/actions/workflows/ci.yml) [![Docs](https://img.shields.io/badge/docs-VitePress-42b883.svg)](docs/)
 
-AgentSpec is an open-source specification, linter and test framework for AI agent instructions.
+Syntax, linting and regression checks for AI agent instructions.
 
-It provides a structured YAML format for describing agent behaviour, plus local tooling for validation, linting, deterministic test scenarios, behavioural diffs, editor diagnostics and implementation planning.
+## Opening story
 
-AgentSpec is not a chatbot and it does not call live LLMs. It is infrastructure for AI instruction engineering.
+Early websites were often edited as raw HTML in Notepad or similar text editors. There was little syntax help, little validation, no modern linting, no integrated test feedback and no reliable way to understand what a change might break. Modern IDEs such as VS Code changed that development experience by making web code easier to inspect, validate, refactor and review.
 
-## Status: experimental
+AI instruction engineering is in a similar place today. Agent instructions are often written as loose prose, prompt fragments or platform-specific configuration. They can be important enough to control tools, handoffs and user-facing workflows, but they frequently lack syntax, linting, validation, testing, diffing and regression checks.
 
-AgentSpec is early-stage open-source infrastructure. The YAML format, rule set and package boundaries are expected to evolve as real-world usage grows. It is suitable for experimentation, design review and local CI checks, but teams should review changes carefully before relying on it for production governance.
+Agent Lint exists to bring some of that missing engineering discipline to AI agent instructions.
 
-## Why AgentSpec exists
+Thanks to Chris Huntingford for highlighting the "HTML before VS Code" comparison that helped shape the framing for this project.
 
-AI agent instructions are often written as long prose documents, prompt templates or scattered configuration fields. That is roughly where websites were before modern IDEs and browsers made HTML, CSS and JavaScript easier to inspect, lint, test and change safely.
+## What Agent Lint is
 
-Today, many teams still manage agent instructions with:
+Agent Lint is an open-source framework and CLI for defining, validating, linting, testing and comparing AI agent instruction specifications.
 
-- no agreed syntax
-- no schema validation
-- no linting for ambiguous or conflicting guidance
-- no local test scenarios
-- no behavioural regression checks when instructions change
-- limited editor support
-- little separation between instructions, tools, routes, handoffs and tests
+The repository currently uses `.agentspec.yaml` files and `@agentspec/*` package names in code. Those names are implementation details of the current workspace and may evolve, but the project is positioned publicly as Agent Lint.
 
-AgentSpec exists to make agent instructions more inspectable and maintainable. It treats instructions as engineering artefacts: structured, versionable, reviewable and testable.
+Agent Lint is local-first. The implemented validation, linting, testing, diffing and documentation commands do not call live LLM APIs. The Copilot Studio planning and audit features are also local and experimental.
 
-## What AgentSpec does
+## What problem it solves
 
-AgentSpec currently includes:
+Agent instructions can become hard to govern as soon as they include tools, routes, handoffs and policy constraints. Agent Lint is designed to catch and review issues such as:
 
-- a YAML-based AgentSpec format
-- TypeScript types, Zod validation and generated JSON schema
-- a parser for `.agentspec.yaml` and `.agentspec.yml` files
-- a rule-based linter for common instruction design issues
-- a deterministic local test runner for route, handoff, tool-call and assertion checks
-- behavioural diffs between two AgentSpec files
-- a VS Code extension package for inline diagnostics and commands
-- an experimental Copilot Studio planning mapper
-- an experimental local Copilot Studio solution audit tool
+- ambiguous agent instructions
+- conflicting rules
+- missing fallback behaviour
+- undocumented tools and actions
+- risky tool access
+- broken handoff logic
+- instruction changes with unknown behavioural impact
 
-Everything is local-first. No Microsoft APIs, model APIs or external services are called by the core tooling.
+It does not guarantee deterministic AI behaviour. It provides an assurance layer for the instruction artefacts that teams review, test and deploy.
 
-## Architecture
+## Current capabilities
 
-```mermaid
-flowchart LR
-  Spec[AgentSpec YAML] --> Parser[@agentspec/parser]
-  Parser --> Schema[@agentspec/spec\nTypes + Zod + JSON Schema]
-  Parser --> Linter[@agentspec/linter]
-  Parser --> Runner[@agentspec/test-runner]
-  Parser --> Diff[@agentspec/diff]
-  Parser --> Copilot[@agentspec/copilot-studio]
-  Linter --> CLI[@agentspec/cli]
-  Runner --> CLI
-  Diff --> CLI
-  Copilot --> CLI
-  Linter --> VSCode[agentspec-vscode]
-  Parser --> VSCode
-  CLI --> CI[CI/CD governance gates]
-  CLI --> Docs[VitePress docs + examples]
-```
+The current workspace includes:
 
-The core packages are local-first. The CLI and VS Code extension reuse the parser, schema and linter packages rather than duplicating validation logic.
+- `@agentspec/spec`: TypeScript types, Zod validation and JSON schema generation
+- `@agentspec/parser`: YAML parser and validation wrapper for `.agentspec.yaml` files
+- `@agentspec/linter`: rule-based linter with documented rule metadata
+- `@agentspec/test-runner`: deterministic local route, handoff, tool and assertion checks
+- `@agentspec/diff`: behavioural diff engine for comparing instruction specs
+- `@agentspec/cli`: CLI commands for validate, lint, test, diff, Copilot planning and Copilot audit
+- `agentspec-vscode`: VS Code extension package for diagnostics and current-file commands
+- `@agentspec/copilot-studio`: experimental markdown implementation plan mapper for Copilot Studio
+- `@agentspec/copilot-studio-audit`: experimental local audit of Power Platform solution zip exports
+- VitePress documentation site under `docs/`
+- GitHub Actions workflows and example CI governance gate
+- examples gallery with good and intentionally bad `.agentspec.yaml` files
 
-## Documentation site
+## Quick start
 
-This repository includes a VitePress documentation site under `docs/`. Run it locally with:
-
-```bash
-pnpm docs:dev
-```
-
-Build the static site with:
-
-```bash
-pnpm docs:build
-```
-
-## Installation and quick start
-
-This repository uses pnpm workspaces.
+Install dependencies:
 
 ```bash
 pnpm install
+```
+
+Build and test the workspace:
+
+```bash
 pnpm build
 pnpm test
 ```
 
-Validate, lint and test an example spec:
+Validate, lint and test an example instruction spec:
 
 ```bash
 pnpm agentspec validate examples/customer-support.agentspec.yaml
@@ -101,18 +79,17 @@ pnpm agentspec test examples/customer-support.agentspec.yaml
 Compare two specs for behavioural impact:
 
 ```bash
-pnpm agentspec diff old.agentspec.yaml new.agentspec.yaml
-pnpm agentspec diff old.agentspec.yaml new.agentspec.yaml --json
+pnpm agentspec diff examples/customer-support.agentspec.yaml examples/copilot-studio-agent.agentspec.yaml
+pnpm agentspec diff examples/customer-support.agentspec.yaml examples/copilot-studio-agent.agentspec.yaml --json
 ```
 
-Generate an experimental Copilot Studio implementation plan:
+Run the docs site locally:
 
 ```bash
-pnpm agentspec copilot-plan examples/copilot-studio-agent.agentspec.yaml
-pnpm agentspec copilot-audit --spec examples/copilot-studio-agent.agentspec.yaml --solution packages/copilot-studio-audit/fixtures/fake-solution.zip
+pnpm docs:dev
 ```
 
-## Example AgentSpec YAML
+## Example Agent Lint YAML
 
 ```yaml
 agent:
@@ -128,19 +105,16 @@ persona:
   verbosity: concise
   style_rules:
     - Use plain language.
-    - Explain when a human review is required.
 
 instructions:
   primary_goal: Classify customer requests and choose the safest approved route.
   secondary_goals:
     - Collect only the account context required for the route.
-    - Escalate refund exceptions and account ownership uncertainty.
   do:
     - Use declared routes before answering.
-    - Use only approved tool operations for account context.
   do_not:
     - Do not request full payment card numbers, passwords or secrets.
-    - Do not invent refund decisions.
+    - Do not write refund decisions.
 
 constraints:
   safety:
@@ -150,9 +124,9 @@ constraints:
   compliance:
     - Follow the published refund and cancellation policies.
   escalation:
-    - Fallback to human_support when policy coverage or identity is unclear.
+    - Fallback to human_support when policy coverage or account ownership is unclear.
   data_access:
-    - Only read account status, invoice summaries and subscription metadata.
+    - Only read account status and invoice summaries.
 
 tools:
   - name: account_lookup
@@ -208,14 +182,19 @@ tests:
       - calls tool account_lookup
 ```
 
-## Examples gallery
+## CLI usage
 
-The `examples/` directory includes a gallery of AgentSpec files for customer support, HR policy, public sector casework, IT service desk, event RSVP, Power Platform governance and sales qualification agents. Each scenario has a passing example and a separate `*.bad.agentspec.yaml` file that is intentionally lint-invalid for demonstrations.
+The development CLI is available through the root package script:
 
-## CLI commands
+```bash
+pnpm agentspec <command>
+```
 
-All CLI commands support `--json` for stable, machine-readable output suitable for CI/CD pipelines. Human-readable output remains the default.
+Build first when running against compiled output:
 
+```bash
+pnpm build
+```
 
 ### Validate
 
@@ -224,7 +203,7 @@ pnpm agentspec validate ./file.agentspec.yaml
 pnpm agentspec validate ./file.agentspec.yaml --json
 ```
 
-Checks that the YAML can be parsed and conforms to the AgentSpec schema. Use `--json` for stable CI output.
+Parses YAML and validates it against the current schema.
 
 ### Lint
 
@@ -233,7 +212,7 @@ pnpm agentspec lint ./file.agentspec.yaml
 pnpm agentspec lint ./file.agentspec.yaml --json
 ```
 
-Runs rule-based checks for issues such as missing goals, conflicting instructions, undefined route targets, missing fallback routes, high-risk tools without authentication and vague instruction language.
+Runs the rule-based linter and exits non-zero when issues are found.
 
 ### Test
 
@@ -242,7 +221,7 @@ pnpm agentspec test ./file.agentspec.yaml
 pnpm agentspec test ./file.agentspec.yaml --json
 ```
 
-Runs deterministic local test scenarios. The runner matches inputs against route triggers, infers the likely route, handoff and tool calls, checks expected and forbidden tool calls, evaluates simple assertions and prints a summary score.
+Runs deterministic local checks over route, handoff, expected tool calls, forbidden tool calls and simple assertions.
 
 ### Diff
 
@@ -251,7 +230,7 @@ pnpm agentspec diff ./old.agentspec.yaml ./new.agentspec.yaml
 pnpm agentspec diff ./old.agentspec.yaml ./new.agentspec.yaml --json
 ```
 
-Reports behavioural impact rather than raw line changes. It detects changes to goals, `do`/`do_not` instructions, tools, tool risk, route triggers, fallback behaviour, escalation conditions, handoff destinations and tests. Changes are classified as low, medium, high or breaking impact.
+Reports behavioural impact rather than raw line changes. The implemented diff detects changed goals, changed `do` and `do_not` instructions, added or removed tools, increased tool risk, changed route triggers, removed fallback behaviour, changed escalation conditions, changed handoff destinations and changed tests.
 
 ### Copilot Studio plan
 
@@ -260,7 +239,7 @@ pnpm agentspec copilot-plan ./file.agentspec.yaml
 pnpm agentspec copilot-plan ./file.agentspec.yaml --json
 ```
 
-Produces experimental markdown that maps AgentSpec concepts to Microsoft Copilot Studio planning concepts: topics, actions, knowledge sources, handoff rules, authentication assumptions and candidate Power Automate flows. It does not call Microsoft APIs and does not generate Copilot Studio export packages.
+Generates an experimental markdown implementation plan that maps the spec to Copilot Studio planning concepts.
 
 ### Copilot Studio audit
 
@@ -269,143 +248,86 @@ pnpm agentspec copilot-audit --spec ./file.agentspec.yaml --solution ./solution.
 pnpm agentspec copilot-audit --spec ./file.agentspec.yaml --solution ./solution.zip --json
 ```
 
-Experimentally compares an AgentSpec file with a local Power Platform solution export. It inspects likely Copilot Studio topics, actions, flows, knowledge references and handoff patterns. It does not call Microsoft APIs and does not require Dataverse access.
+Experimentally inspects a local Power Platform solution export zip and compares likely Copilot Studio components with the expected instruction spec.
 
-## Linting examples
+## Copilot Studio angle
 
-AgentSpec lint rules return a rule id, severity, message, path, suggestion and confidence score.
+Agent Lint includes two experimental Copilot Studio related packages.
 
-Example issue:
+The planning mapper can turn an instruction spec into a markdown implementation plan covering likely topics, actions, knowledge sources, handoff rules, authentication assumptions and Power Automate flows.
 
-```text
-Errors (1)
-  - route-target-not-defined [routes.0.target]
-    Route "billing_support" targets undefined tool "account_lookup".
-    Suggestion: Define tool "account_lookup" or update the route target to an existing tool.
-    Confidence: 99%
+The audit package can inspect a local Power Platform solution zip where possible, identify likely bot-related files and compare extracted topics, actions, flows, knowledge references and handoff patterns against the intended spec.
+
+This can be used as an assurance layer around Copilot Studio agents. It helps compare intended behaviour against exported solution structure. It does not call Microsoft APIs, does not require Dataverse access and does not claim full Microsoft solution package compatibility.
+
+## How teams get value
+
+Agent Lint is intended to support practical engineering and governance workflows:
+
+- pre-flight checks before publishing agent changes
+- pull request checks for instruction changes
+- governance evidence for enterprise teams
+- regression testing for routes, tools and handoffs
+- behavioural diff review when instructions change
+- shared language between architects, makers and developers
+- examples that show both good patterns and intentional lint failures
+
+The GitHub Actions example in `examples/github-actions/agentspec-check.yml` shows how to validate, lint and test instruction specs in CI.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  YAML[.agentspec.yaml files] --> Parser[@agentspec/parser]
+  Parser --> Spec[@agentspec/spec]
+  Parser --> Linter[@agentspec/linter]
+  Parser --> Runner[@agentspec/test-runner]
+  Parser --> Diff[@agentspec/diff]
+  Parser --> Planner[@agentspec/copilot-studio]
+  Parser --> Audit[@agentspec/copilot-studio-audit]
+  Linter --> CLI[@agentspec/cli]
+  Runner --> CLI
+  Diff --> CLI
+  Planner --> CLI
+  Audit --> CLI
+  Parser --> VSCode[agentspec-vscode]
+  Linter --> VSCode
+  CLI --> CI[GitHub Actions and CI gates]
+  CLI --> Docs[VitePress docs and examples]
 ```
 
-Current rule coverage includes:
-
-- `missing-primary-goal`
-- `conflicting-do-and-do-not`
-- `route-target-not-defined`
-- `handoff-without-condition`
-- `missing-fallback-route`
-- `tool-without-risk-level`
-- `high-risk-tool-without-auth`
-- `vague-instruction-language`
-- `duplicate-route-trigger`
-- `test-without-assertions`
-- `forbidden-operation-not-enforced`
-- `no-escalation-path`
-
-## Testing examples
-
-AgentSpec tests are deterministic checks over the specification, not model evaluations.
-
-Supported assertions currently include:
-
-- `route is <name>`
-- `handoff is <name>`
-- `calls tool <name>`
-- `does not call tool <name>`
-- `input contains <text>`
-
-Example output:
-
-```text
-AgentSpec Test Results
-
-Passed (1)
-  - billing refund route
-    route=billing_support, handoff=human_support, tools=account_lookup
-
-Summary: 1/1 passed, 0 failed, score 100%
-```
-
-The test runner is deliberately simple. It is intended to catch obvious regressions in routing, handoff and tool-call expectations before a spec reaches a live agent runtime.
-
-## CI governance gate
-
-An example GitHub Actions workflow is available at `examples/github-actions/agentspec-check.yml`. It validates, lints and tests every tracked `.agentspec.yaml` or `.agentspec.yml` file and fails the pipeline on errors. See the docs site page “CI governance gates” for guidance on using AgentSpec checks before merging instruction changes.
-
-## VS Code support
-
-The `packages/vscode-extension` package recognises `.agentspec.yaml` and `.agentspec.yml` files, shows validation and lint diagnostics inline, and contributes these commands:
-
-- `AgentSpec: Validate Current File`
-- `AgentSpec: Lint Current File`
-
-The extension uses the existing parser and linter packages so editor behaviour stays aligned with the CLI.
-
-## Repository layout
-
-```text
-packages/spec              TypeScript types, Zod schema and JSON schema generation
-packages/parser            YAML parser and validation wrapper
-packages/linter            Rule-based lint engine
-packages/test-runner       Deterministic local test runner
-packages/diff              Behavioural diff engine
-packages/cli               Command-line interface
-packages/vscode-extension  VS Code extension package
-packages/copilot-studio    Experimental Copilot Studio planning mapper
-examples/                  Example AgentSpec files
-```
+The core packages are local-first. The CLI and VS Code extension reuse parser, schema and linter packages rather than duplicating validation logic.
 
 ## Roadmap
 
-Near-term areas of work:
+Realistic near-term work includes:
 
-- richer schema documentation and JSON schema publishing
-- improved source mapping from schema/lint paths to YAML ranges
-- more lint rules for safety, privacy, tool scope and escalation design
-- stronger deterministic test assertions
-- snapshot output for CI use
-- VS Code quick fixes for common lint issues
-- fixture-based behavioural regression suites
-- import/export planning for specific agent platforms
+- richer semantic linting
+- stronger Copilot Studio extraction from solution exports
+- better VS Code diagnostics and source ranges
+- CI policy gates and report artefacts
+- a more capable local simulation engine
+- hosted reporting for teams that want dashboards and audit history
+- integration adapters for additional agent platforms
 
-Longer-term areas being considered:
+The project should keep the core specification, parser, linter, deterministic test runner, behavioural diff engine and CLI useful without a hosted service.
 
-- policy packs for regulated domains
-- organisation-specific rule configuration
-- richer simulation adapters
-- compatibility reports for agent platforms
-- hosted collaboration, review and governance workflows
+## Status: experimental
 
-## Roadmap snapshot
+Agent Lint is experimental and early-stage. The YAML format, linter rules, package boundaries and Copilot Studio extraction logic may change as the project is tested against more real-world agent instruction workflows.
 
-AgentSpec is focused on practical local assurance first:
-
-- stabilise the YAML format and generated JSON schema
-- improve YAML source mapping for editor diagnostics
-- expand lint rules and configurable policy packs
-- strengthen deterministic test assertions
-- improve CI/CD and pull request reporting
-- add VS Code quick fixes for common issues
-- develop platform planning adapters without introducing API side effects into core packages
-
-See the docs site roadmap for more detail.
-
-## Open-core positioning
-
-AgentSpec is intended to be commercial-friendly open-source infrastructure.
-
-The core specification, parser, linter, deterministic test runner, behavioural diff engine and local CLI should remain useful without a paid service. A future commercial layer could reasonably focus on team workflows, hosted review, dashboards, managed policy packs, compliance evidence, private registries and integrations with enterprise systems.
-
-The aim is to keep the engineering substrate open while leaving room for sustainable commercial development around collaboration and governance.
+Use it today as an engineering assurance tool for review, CI checks and regression detection. Do not treat it as a guarantee of deterministic AI behaviour.
 
 ## Contributing
 
 Contributions are welcome. Good first areas include:
 
-- improving documentation and examples
-- adding focused lint rules with tests
-- expanding deterministic assertion support
-- improving YAML diagnostic ranges
-- adding realistic AgentSpec fixtures for different domains
-- tightening TypeScript types and schema descriptions
+- documentation and examples
+- additional linter rules with metadata and tests
+- stronger deterministic assertions
+- improved YAML diagnostic locations
+- Copilot Studio audit fixtures
+- CI reporting improvements
 
 Before opening a pull request, run:
 
@@ -413,14 +335,21 @@ Before opening a pull request, run:
 pnpm install
 pnpm test
 pnpm build
+pnpm docs:build
 ```
 
-Please keep changes small, deterministic and covered by tests where behaviour changes.
+If you change linter rule metadata, regenerate the rule docs:
+
+```bash
+pnpm docs:linter-rules
+```
+
+## Acknowledgement
+
+Thanks to Chris Huntingford for highlighting the "HTML before VS Code" comparison that helped shape the framing for this project.
 
 ## Disclaimer
 
-AgentSpec does not provide deterministic control over AI systems.
+Agent Lint does not provide deterministic control over AI systems. LLM-backed agents can still behave unexpectedly because outputs depend on model behaviour, runtime context, retrieval, tools and deployment configuration.
 
-LLM-backed agents can still behave unexpectedly because model outputs depend on model behaviour, runtime context, retrieval, tool results and deployment configuration. AgentSpec is an engineering assurance tool: it helps teams structure instructions, find common problems, run local checks and review behavioural changes before deployment.
-
-It should be used alongside runtime monitoring, human review, safety evaluation, access controls and platform-specific governance.
+Agent Lint is an assurance and engineering discipline tool. It helps teams structure instructions, find common problems, run local checks and review behavioural changes before deployment. It should be used alongside runtime monitoring, access controls, human review, safety evaluation and platform-specific governance.
