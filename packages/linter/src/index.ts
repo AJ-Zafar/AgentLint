@@ -131,7 +131,6 @@ export function lintAgentSpec(spec: AgentSpecDocument): LintResult {
     }
 
     if (test.expect.escalation) {
-      referencedEscalations.add(test.expect.escalation);
       if (!escalationIds.has(test.expect.escalation)) {
         hasUndefinedEscalation = true;
         issues.push({
@@ -144,7 +143,6 @@ export function lintAgentSpec(spec: AgentSpecDocument): LintResult {
     }
 
     for (const toolId of test.expect.tools ?? []) {
-      referencedTools.add(toolId);
       if (!toolIds.has(toolId)) {
         issues.push({
           code: "undefined-tool",

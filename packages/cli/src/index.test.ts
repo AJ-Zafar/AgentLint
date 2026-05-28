@@ -78,6 +78,21 @@ describe("agentspec CLI", () => {
     expect(result.stdout).toContain("1 passed");
   });
 
+  it("fails deterministic declared tests when a defined expected route does not match the simulated route", async () => {
+    const wrongRouteYaml = validYaml
+      .replace(
+        "routes:\n  - id: billing",
+        "routes:\n  - id: technical-support\n    when: Customer asks about technical support.\n    instructions:\n      - Gather environment details.\n    escalateTo: human-support\n  - id: billing"
+      )
+      .replace("route: billing", "route: technical-support");
+    const filePath = await writeFixture("wrong-route.agentspec.yaml", wrongRouteYaml);
+
+    const result = await runCli(["test", filePath]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain('expected route "technical-support" but simulated "billing"');
+  });
+
   it("diffs two AgentSpec YAML files", async () => {
     const oldPath = await writeFixture("old.agentspec.yaml", validYaml);
     const newPath = await writeFixture(

@@ -113,26 +113,26 @@ export const jsonSchemaSchema: z.ZodType<JsonSchema> = z.lazy(() =>
     .catchall(z.unknown())
 );
 
-export const agentSpecSchema = z.object({
+export const agentSpecSchema = z.strictObject({
   agentspec: z.literal("1.0"),
-  metadata: z.object({
+  metadata: z.strictObject({
     name: nonEmptyString,
     version: z.coerce.string().pipe(nonEmptyString),
     description: nonEmptyString.optional(),
     owners: z.array(nonEmptyString).optional()
   }),
-  agent: z.object({
+  agent: z.strictObject({
     id: nonEmptyString,
     description: nonEmptyString
   }),
-  instructions: z.object({
+  instructions: z.strictObject({
     system: nonEmptyString,
     goals: z.array(nonEmptyString),
     constraints: z.array(nonEmptyString),
     fallback: nonEmptyString
   }),
   routes: z.array(
-    z.object({
+    z.strictObject({
       id: nonEmptyString,
       when: nonEmptyString,
       instructions: z.array(nonEmptyString),
@@ -141,14 +141,14 @@ export const agentSpecSchema = z.object({
     })
   ),
   tools: z.array(
-    z.object({
+    z.strictObject({
       id: nonEmptyString,
       description: nonEmptyString,
       inputSchema: jsonSchemaSchema
     })
   ),
   escalations: z.array(
-    z.object({
+    z.strictObject({
       id: nonEmptyString,
       when: nonEmptyString,
       target: nonEmptyString
@@ -156,10 +156,10 @@ export const agentSpecSchema = z.object({
   ),
   tests: z
     .array(
-      z.object({
+      z.strictObject({
         id: nonEmptyString,
         input: nonEmptyString,
-        expect: z.object({
+        expect: z.strictObject({
           route: nonEmptyString.optional(),
           escalation: nonEmptyString.optional(),
           tools: z.array(nonEmptyString).optional()

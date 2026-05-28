@@ -86,6 +86,21 @@ describe("AgentSpec schema", () => {
     expect(result.issues[0]?.path).toContain("instructions.fallback");
   });
 
+  it("rejects unknown fields so runtime validation matches the JSON schema", () => {
+    const invalid = {
+      ...validSpec,
+      agent: {
+        ...validSpec.agent,
+        typo: "silently ignored fields are unsafe"
+      }
+    };
+
+    const result = validateAgentSpec(invalid);
+
+    expect(result.success).toBe(false);
+    expect(result.issues[0]?.path).toBe("agent");
+  });
+
   it("publishes a JSON schema for editor and CLI validation", () => {
     expect(agentSpecJsonSchema.$schema).toBe("https://json-schema.org/draft/2020-12/schema");
     expect(agentSpecJsonSchema.required).toContain("instructions");

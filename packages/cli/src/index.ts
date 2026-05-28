@@ -144,18 +144,32 @@ export function runDeclaredTests(spec: AgentSpecDocument): DeclaredTestResult {
 
   for (const test of spec.tests ?? []) {
     const messages: string[] = [];
+    const simulatedRoute = simulateRoute(spec, test.input);
+    const simulatedRouteId = simulatedRoute?.id ?? "none";
 
-    if (test.expect.route && !routeIds.has(test.expect.route)) {
-      messages.push(`expected route "${test.expect.route}" is not defined`);
+    if (test.expect.route) {
+      if (!routeIds.has(test.expect.route)) {
+        messages.push(`expected route "${test.expect.route}" is not defined`);
+      } else if (simulatedRoute?.id !== test.expect.route) {
+        messages.push(`expected route "${test.expect.route}" but simulated "${simulatedRouteId}"`);
+      }
     }
 
-    if (test.expect.escalation && !escalationIds.has(test.expect.escalation)) {
-      messages.push(`expected escalation "${test.expect.escalation}" is not defined`);
+    if (test.expect.escalation) {
+      const simulatedEscalation = simulatedRoute?.escalateTo ?? "none";
+      if (!escalationIds.has(test.expect.escalation)) {
+        messages.push(`expected escalation "${test.expect.escalation}" is not defined`);
+      } else if (simulatedRoute?.escalateTo !== test.expect.escalation) {
+        messages.push(`expected escalation "${test.expect.escalation}" but simulated "${simulatedEscalation}"`);
+      }
     }
 
+    const simulatedTools = new Set(simulatedRoute?.tools ?? []);
     for (const toolId of test.expect.tools ?? []) {
       if (!toolIds.has(toolId)) {
         messages.push(`expected tool "${toolId}" is not defined`);
+      } else if (!simulatedTools.has(toolId)) {
+        messages.push(`expected tool "${toolId}" but simulated route "${simulatedRouteId}" does not use it`);
       }
     }
 
@@ -173,6 +187,53 @@ export function runDeclaredTests(spec: AgentSpecDocument): DeclaredTestResult {
     failed: failures.length,
     failures
   };
+}
+
+function simulateRoute(spec: AgentSpecDocument, input: string): AgentSpecDocument["routes"][number] | undefined {
+  const inputTokens = tokenize(input);
+  let bestRoute: AgentSpecDocument["routes"][number] | undefined;
+  let bestScore = 0;
+
+  for (const route of spec.routes) {
+    const routeTokens = tokenize(`${route.id} ${route.when}`);
+    const score = [...inputTokens].filter((token) => routeTokens.has(token)).length;
+
+    if (score > bestScore) {
+      bestRoute = route;
+      bestScore = score;
+    }
+  }
+
+  return bestScore > 0 ? bestRoute : undefined;
+}
+
+function tokenize(value: string): Set<string> {
+  const stopWords = new Set([
+    "a",
+    "about",
+    "an",
+    "and",
+    "are",
+    "asks",
+    "can",
+    "customer",
+    "i",
+    "is",
+    "need",
+    "of",
+    "or",
+    "the",
+    "this",
+    "to"
+  ]);
+
+  return new Set(
+    value
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .map((token) => token.replace(/s$/, ""))
+      .filter((token) => token.length > 2 && !stopWords.has(token))
+  );
 }
 
 type DiffChange = {

@@ -109,6 +109,41 @@ describe("AgentSpec linter", () => {
     ]);
   });
 
+  it("does not count test expectations as executable tool or escalation references", () => {
+    const problematic: AgentSpecDocument = {
+      ...baseSpec,
+      tools: [
+        ...baseSpec.tools,
+        {
+          id: "test-only-tool",
+          description: "Only appears in a declared test expectation.",
+          inputSchema: { type: "object" }
+        }
+      ],
+      escalations: [
+        ...baseSpec.escalations,
+        {
+          id: "test-only-escalation",
+          when: "Only appears in a declared test expectation.",
+          target: "queue:test-only"
+        }
+      ],
+      tests: [
+        {
+          id: "test-only-references",
+          input: "This mentions expectations only.",
+          expect: {
+            route: "complex-case",
+            escalation: "test-only-escalation",
+            tools: ["test-only-tool"]
+          }
+        }
+      ]
+    };
+
+    expect(issueCodes(problematic)).toEqual(["unreachable-escalation-path", "unused-tool"]);
+  });
+
   it("passes a well-formed local deterministic specification", () => {
     expect(lintAgentSpec(baseSpec).issues).toEqual([]);
   });
