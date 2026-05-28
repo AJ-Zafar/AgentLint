@@ -86,12 +86,47 @@ async function writeFixture(name: string, contents: string): Promise<string> {
 }
 
 describe("agentspec CLI", () => {
+  it("shows help with a zero exit code", async () => {
+    const result = await runCli(["--help"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Usage: agentspec");
+  });
+
   it("validates AgentSpec YAML files", async () => {
     const filePath = await writeFixture("valid.agentspec.yaml", validYaml);
     const result = await runCli(["validate", filePath]);
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("valid");
+  });
+
+  it("emits deterministic JSON for validate", async () => {
+    const filePath = await writeFixture("valid-json.agentspec.yaml", validYaml);
+    const result = await runCli(["validate", filePath, "--json"]);
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(parsed).toEqual({
+      command: "validate",
+      file: filePath,
+      valid: true,
+      diagnostics: []
+    });
+    expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+  });
+
+  it("emits deterministic JSON for invalid validate", async () => {
+    const filePath = await writeFixture("invalid-json.agentspec.yaml", "agent:\n  name: Broken\n");
+    const result = await runCli(["validate", filePath, "--json"]);
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(1);
+    expect(parsed.command).toBe("validate");
+    expect(parsed.file).toBe(filePath);
+    expect(parsed.valid).toBe(false);
+    expect(parsed.diagnostics[0]).toMatchObject({ severity: "error", path: "agent.description" });
+    expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
   });
 
   it("lints AgentSpec YAML files with grouped terminal output", async () => {
@@ -106,6 +141,20 @@ describe("agentspec CLI", () => {
     expect(result.stdout).toContain("Suggestion:");
   });
 
+  it("emits deterministic JSON for lint", async () => {
+    const filePath = await writeFixture("lint-json.agentspec.yaml", lintYaml);
+    const result = await runCli(["lint", filePath, "--json"]);
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(1);
+    expect(parsed.command).toBe("lint");
+    expect(parsed.file).toBe(filePath);
+    expect(parsed.success).toBe(false);
+    expect(parsed.issueCount).toBe(parsed.issues.length);
+    expect(parsed.issues.map((issue: { ruleId: string }) => issue.ruleId)).toContain("route-target-not-defined");
+    expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+  });
+
   it("runs deterministic declared tests without live model calls", async () => {
     const filePath = await writeFixture("test.agentspec.yaml", validYaml);
     const result = await runCli(["test", filePath]);
@@ -114,6 +163,22 @@ describe("agentspec CLI", () => {
     expect(result.stdout).toContain("AgentSpec Test Results");
     expect(result.stdout).toContain("Passed (1)");
     expect(result.stdout).toContain("Summary: 1/1 passed, 0 failed, score 100%");
+  });
+
+  it("emits deterministic JSON for test", async () => {
+    const filePath = await writeFixture("test-json.agentspec.yaml", validYaml);
+    const result = await runCli(["test", filePath, "--json"]);
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(parsed).toMatchObject({
+      command: "test",
+      file: filePath,
+      success: true,
+      summary: { total: 1, passed: 1, failed: 0, score: 100 }
+    });
+    expect(parsed.tests[0]).toMatchObject({ name: "billing refund route", passed: true });
+    expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
   });
 
   it("fails deterministic declared tests when a defined expected route does not match the simulated route", async () => {
@@ -143,6 +208,58 @@ describe("agentspec CLI", () => {
     expect(result.stdout).toContain("## Topics");
     expect(result.stdout).toContain("## Power Automate Flows");
     expect(result.stdout).toContain("No Microsoft APIs are called");
+  });
+
+  it("emits deterministic JSON for copilot-plan", async () => {
+    const filePath = "examples/copilot-studio-agent.agentspec.yaml";
+    const result = await runCli(["copilot-plan", filePath, "--json"]);
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(parsed.command).toBe("copilot-plan");
+    expect(parsed.file).toBe(filePath);
+    expect(parsed.format).toBe("markdown");
+    expect(parsed.markdown).toContain("# Copilot Studio Implementation Plan: Copilot Studio Readiness Agent");
+    expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+  });
+
+
+  it("audits a Copilot Studio solution export", async () => {
+    const result = await runCli([
+      "copilot-audit",
+      "--spec",
+      "examples/copilot-studio-agent.agentspec.yaml",
+      "--solution",
+      "packages/copilot-studio-audit/fixtures/fake-solution.zip"
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Copilot Studio Audit Report");
+    expect(result.stdout).toContain("Status: experimental");
+    expect(result.stdout).toContain("Expected but missing topics");
+    expect(result.stdout).toContain("connector_review");
+    expect(result.stdout).toContain("High-risk tools not documented in AgentSpec");
+    expect(result.stdout).toContain("delete_environment");
+  });
+
+  it("emits deterministic JSON for copilot-audit", async () => {
+    const result = await runCli([
+      "copilot-audit",
+      "--spec",
+      "examples/copilot-studio-agent.agentspec.yaml",
+      "--solution",
+      "packages/copilot-studio-audit/fixtures/fake-solution.zip",
+      "--json"
+    ]);
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(parsed.command).toBe("copilot-audit");
+    expect(parsed.specFile).toBe("examples/copilot-studio-agent.agentspec.yaml");
+    expect(parsed.solutionFile).toBe("packages/copilot-studio-audit/fixtures/fake-solution.zip");
+    expect(parsed.report.findings.expectedMissingTopics).toEqual(["connector_review", "fallback_maker_admin_review"]);
+    expect(parsed.report.findings.highRiskToolsNotDocumentedInAgentSpec).toEqual([{ name: "delete_environment", riskLevel: "critical" }]);
+    expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
   });
 
   it("diffs two AgentSpec YAML files with a behavioral report", async () => {
@@ -176,7 +293,11 @@ describe("agentspec CLI", () => {
     const parsed = JSON.parse(result.stdout);
 
     expect(result.exitCode).toBe(0);
+    expect(parsed.command).toBe("diff");
+    expect(parsed.oldFile).toBe(oldPath);
+    expect(parsed.newFile).toBe(newPath);
     expect(parsed.impact).toBe("high");
     expect(parsed.changes[0]).toMatchObject({ type: "changed-primary-goal", impact: "high" });
+    expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
   });
 });

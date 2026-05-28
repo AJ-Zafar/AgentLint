@@ -1,14 +1,17 @@
 {
   "name": "agentspec-vscode",
   "displayName": "AgentSpec",
-  "description": "VS Code support for AgentSpec YAML files.",
+  "description": "VS Code extension for AgentSpec YAML diagnostics and commands.",
   "version": "0.1.0",
   "publisher": "agentspec",
   "type": "module",
   "engines": {
     "vscode": "^1.95.0"
   },
-  "categories": ["Linters", "Programming Languages"],
+  "categories": [
+    "Linters",
+    "Programming Languages"
+  ],
   "main": "./dist/extension.js",
   "activationEvents": [
     "onLanguage:agentspec",
@@ -19,9 +22,17 @@
     "languages": [
       {
         "id": "agentspec",
-        "aliases": ["AgentSpec"],
-        "extensions": [".agentspec.yaml", ".agentspec.yml"],
-        "filenamePatterns": ["*.agentspec.yaml", "*.agentspec.yml"],
+        "aliases": [
+          "AgentSpec"
+        ],
+        "extensions": [
+          ".agentspec.yaml",
+          ".agentspec.yml"
+        ],
+        "filenamePatterns": [
+          "*.agentspec.yaml",
+          "*.agentspec.yml"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -46,5 +57,15 @@
   },
   "devDependencies": {
     "@types/vscode": "latest"
-  }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AJ-Zafar/AgentLint.git",
+    "directory": "packages/vscode-extension"
+  },
+  "bugs": {
+    "url": "https://github.com/AJ-Zafar/AgentLint/issues"
+  },
+  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme"
 }

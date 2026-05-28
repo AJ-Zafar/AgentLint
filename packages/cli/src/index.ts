@@ -1,9 +1,10 @@
 import { Command, CommanderError } from "commander";
-import { parseAgentSpecFile } from "@agentspec/parser";
+import { AgentSpecParseError, parseAgentSpecFile, type ParsedAgentSpec } from "@agentspec/parser";
 import { lintAgentSpec } from "@agentspec/linter";
 import { runAgentSpecTests, type TestRunResult } from "@agentspec/test-runner";
 import { diffAgentSpecs, type BehavioralDiffResult } from "@agentspec/diff";
 import { convertAgentSpecToCopilotStudioPlan } from "@agentspec/copilot-studio";
+import { auditCopilotStudioSolution, type CopilotStudioAuditReport } from "@agentspec/copilot-studio-audit";
 
 export type CliResult = {
   exitCode: number;
@@ -32,38 +33,62 @@ export function createCli(state: CliState): Command {
   program
     .command("validate")
     .argument("<file>", "AgentSpec YAML file")
+    .option("--json", "Emit machine-readable JSON output")
     .description("Validate an AgentSpec YAML file.")
-    .action(async (file: string) => {
-      await parseAgentSpecFile(file);
-      state.stdout.push(`${file} is valid\n`);
+    .action(async (file: string, options: { json?: boolean }) => {
+      const parsed = await parseForCommand(file, state, "validate", options.json);
+      if (!parsed) {
+        return;
+      }
+
+      const payload = { command: "validate", file, valid: true, diagnostics: [] };
+      state.stdout.push(options.json ? jsonLine(payload) : `${file} is valid\n`);
     });
 
   program
     .command("lint")
     .argument("<file>", "AgentSpec YAML file")
+    .option("--json", "Emit machine-readable JSON output")
     .description("Lint an AgentSpec YAML file for instruction-engineering issues.")
-    .action(async (file: string) => {
-      const parsed = await parseAgentSpecFile(file);
+    .action(async (file: string, options: { json?: boolean }) => {
+      const parsed = await parseForCommand(file, state, "lint", options.json);
+      if (!parsed) {
+        return;
+      }
+
       const result = lintAgentSpec(parsed.document);
+      const payload = {
+        command: "lint",
+        file,
+        success: result.issues.length === 0,
+        issueCount: result.issues.length,
+        issues: result.issues
+      };
 
       if (result.issues.length === 0) {
-        state.stdout.push(`${file}: no lint issues\n`);
+        state.stdout.push(options.json ? jsonLine(payload) : `${file}: no lint issues\n`);
         return;
       }
 
       state.exitCode = 1;
-      state.stdout.push(formatLintIssues(result.issues));
+      state.stdout.push(options.json ? jsonLine(payload) : formatLintIssues(result.issues));
     });
 
   program
     .command("test")
     .argument("<file>", "AgentSpec YAML file")
+    .option("--json", "Emit machine-readable JSON output")
     .description("Run deterministic declared AgentSpec tests without live model calls.")
-    .action(async (file: string) => {
-      const parsed = await parseAgentSpecFile(file);
-      const result = runAgentSpecTests(parsed.document);
+    .action(async (file: string, options: { json?: boolean }) => {
+      const parsed = await parseForCommand(file, state, "test", options.json);
+      if (!parsed) {
+        return;
+      }
 
-      state.stdout.push(formatTestRun(result));
+      const result = runAgentSpecTests(parsed.document);
+      const payload = { command: "test", file, success: result.summary.failed === 0, summary: result.summary, tests: result.tests };
+
+      state.stdout.push(options.json ? jsonLine(payload) : formatTestRun(result));
       if (result.summary.failed > 0) {
         state.exitCode = 1;
       }
@@ -72,10 +97,34 @@ export function createCli(state: CliState): Command {
   program
     .command("copilot-plan")
     .argument("<file>", "AgentSpec YAML file")
+    .option("--json", "Emit machine-readable JSON output")
     .description("Generate an experimental Microsoft Copilot Studio implementation plan.")
-    .action(async (file: string) => {
-      const parsed = await parseAgentSpecFile(file);
-      state.stdout.push(convertAgentSpecToCopilotStudioPlan(parsed.document));
+    .action(async (file: string, options: { json?: boolean }) => {
+      const parsed = await parseForCommand(file, state, "copilot-plan", options.json);
+      if (!parsed) {
+        return;
+      }
+
+      const markdown = convertAgentSpecToCopilotStudioPlan(parsed.document);
+      const payload = { command: "copilot-plan", file, format: "markdown", markdown };
+      state.stdout.push(options.json ? jsonLine(payload) : markdown);
+    });
+
+  program
+    .command("copilot-audit")
+    .requiredOption("--spec <file>", "AgentSpec YAML file")
+    .requiredOption("--solution <file>", "Microsoft Power Platform solution export zip")
+    .option("--json", "Emit machine-readable JSON output")
+    .description("Experimentally audit a local Copilot Studio solution export against an AgentSpec file.")
+    .action(async (options: { spec: string; solution: string; json?: boolean }) => {
+      const parsed = await parseForCommand(options.spec, state, "copilot-audit", options.json);
+      if (!parsed) {
+        return;
+      }
+
+      const report = await auditCopilotStudioSolution({ spec: parsed.document, solutionPath: options.solution });
+      const payload = { command: "copilot-audit", specFile: options.spec, solutionFile: options.solution, report };
+      state.stdout.push(options.json ? jsonLine(payload) : formatCopilotAudit(report));
     });
 
   program
@@ -85,13 +134,55 @@ export function createCli(state: CliState): Command {
     .option("--json", "Emit machine-readable JSON output")
     .description("Report behavioral impact between two AgentSpec YAML files.")
     .action(async (oldFile: string, newFile: string, options: { json?: boolean }) => {
-      const [oldSpec, newSpec] = await Promise.all([parseAgentSpecFile(oldFile), parseAgentSpecFile(newFile)]);
+      const oldSpec = await parseForCommand(oldFile, state, "diff", options.json);
+      if (!oldSpec) {
+        return;
+      }
+      const newSpec = await parseForCommand(newFile, state, "diff", options.json);
+      if (!newSpec) {
+        return;
+      }
       const result = diffAgentSpecs(oldSpec.document, newSpec.document);
+      const payload = { command: "diff", oldFile, newFile, impact: result.impact, summary: result.summary, changes: result.changes };
 
-      state.stdout.push(options.json ? `${JSON.stringify(result, null, 2)}\n` : formatBehavioralDiff(result));
+      state.stdout.push(options.json ? jsonLine(payload) : formatBehavioralDiff(result));
     });
 
   return program;
+}
+
+async function parseForCommand(
+  file: string,
+  state: CliState,
+  command: string,
+  json?: boolean
+): Promise<ParsedAgentSpec | undefined> {
+  try {
+    return await parseAgentSpecFile(file);
+  } catch (error) {
+    if (json && error instanceof AgentSpecParseError) {
+      state.exitCode = 1;
+      state.stdout.push(
+        jsonLine({
+          command,
+          file,
+          valid: false,
+          diagnostics: error.issues.map((issue) => ({
+            severity: "error",
+            path: issue.path,
+            message: issue.message
+          }))
+        })
+      );
+      return undefined;
+    }
+
+    throw error;
+  }
+}
+
+function jsonLine(value: unknown): string {
+  return `${JSON.stringify(value, null, 2)}\n`;
 }
 
 function formatLintIssues(issues: Array<{ severity: string; ruleId: string; path: string; message: string; suggestion: string; confidence: number }>): string {
@@ -132,14 +223,16 @@ export async function runCli(args: string[]): Promise<CliResult> {
   try {
     await program.parseAsync(args, { from: "user" });
   } catch (error) {
-    state.exitCode = 1;
     if (error instanceof CommanderError) {
-      if (error.message) {
+      state.exitCode = error.exitCode;
+      if (error.message && error.code !== "commander.helpDisplayed") {
         state.stderr.push(`${error.message}\n`);
       }
     } else if (error instanceof Error) {
+      state.exitCode = 1;
       state.stderr.push(`${error.message}\n`);
     } else {
+      state.exitCode = 1;
       state.stderr.push(`${String(error)}\n`);
     }
   }
@@ -188,6 +281,59 @@ function formatTestRun(result: TestRunResult): string {
 
 function formatList(values: string[]): string {
   return values.length === 0 ? "none" : values.join(", ");
+}
+
+function formatCopilotAudit(report: CopilotStudioAuditReport): string {
+  const lines = [
+    "Copilot Studio Audit Report",
+    "Status: experimental",
+    "No Microsoft APIs are called. Solution internals may change.",
+    `Solution: ${report.solutionPath}`,
+    `Findings: ${report.summary.findingCount}`,
+    "",
+    "Extracted components",
+    `  Topics: ${formatList(report.extracted.topics)}`,
+    `  Actions: ${formatList(report.extracted.actions.map((action) => action.riskLevel ? `${action.name} (${action.riskLevel})` : action.name))}`,
+    `  Flows: ${formatList(report.extracted.flows)}`,
+    `  Knowledge: ${formatList(report.extracted.knowledgeReferences)}`,
+    `  Handoffs: ${formatList(report.extracted.handoffs)}`,
+    ""
+  ];
+
+  appendFindingList(lines, "Expected but missing topics", report.findings.expectedMissingTopics);
+  appendFindingList(lines, "Unexpected topics", report.findings.unexpectedTopics);
+  appendFindingList(lines, "Expected but missing actions/tools", report.findings.expectedMissingActions);
+  appendFindingList(
+    lines,
+    "High-risk tools not documented in AgentSpec",
+    report.findings.highRiskToolsNotDocumentedInAgentSpec.map((tool) => tool.riskLevel ? `${tool.name} (${tool.riskLevel})` : tool.name)
+  );
+  appendFindingList(lines, "Missing fallback/handoff coverage", report.findings.missingFallbackHandoffCoverage);
+  appendFindingList(
+    lines,
+    "Tests referencing missing routes/actions",
+    report.findings.testsReferencingMissingRoutesOrActions.map((test) => {
+      const parts = [
+        ...test.missingRoutes.map((route) => `route:${route}`),
+        ...test.missingActions.map((action) => `action:${action}`)
+      ];
+      return `${test.testName} (${parts.join(", ")})`;
+    })
+  );
+
+  return `${lines.join("\n").trimEnd()}\n`;
+}
+
+function appendFindingList(lines: string[], title: string, values: string[]): void {
+  lines.push(title);
+  if (values.length === 0) {
+    lines.push("  - none", "");
+    return;
+  }
+  for (const value of values) {
+    lines.push(`  - ${value}`);
+  }
+  lines.push("");
 }
 
 function formatBehavioralDiff(result: BehavioralDiffResult): string {

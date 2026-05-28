@@ -1,0 +1,8 @@
+{
+  "kind": "action",
+  "name": "delete_environment",
+  "riskLevel": "critical",
+  "operations": [
+    "delete_environment"
+  ]
+}

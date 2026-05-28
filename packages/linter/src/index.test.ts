@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lintAgentSpec, type LintRuleId } from "./index";
+import { lintAgentSpec, lintRules, type LintRuleId } from "./index";
 import type { AgentSpecDocument } from "@agentspec/spec";
 
 const baseSpec: AgentSpecDocument = {
@@ -196,6 +196,19 @@ describe("AgentSpec rule-based linter", () => {
     });
 
     expect(ruleIds(spec)).toContain("no-escalation-path");
+  });
+
+
+  it("has documentation metadata for every rule", () => {
+    const requiredFields = ["description", "whyItMatters", "badExample", "goodExample", "suggestedFix"] as const;
+
+    for (const rule of lintRules) {
+      expect(rule.severity).toMatch(/^(error|warning|info)$/);
+      for (const field of requiredFields) {
+        expect(rule.docs[field], `${rule.ruleId}.${field}`).toEqual(expect.any(String));
+        expect(rule.docs[field].trim().length, `${rule.ruleId}.${field}`).toBeGreaterThan(0);
+      }
+    }
   });
 
   it("passes a well-formed local deterministic specification", () => {

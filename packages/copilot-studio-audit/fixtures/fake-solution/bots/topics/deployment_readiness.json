@@ -1,0 +1,10 @@
+{
+  "kind": "topic",
+  "name": "deployment_readiness",
+  "triggerPhrases": [
+    "publish",
+    "deployment",
+    "readiness",
+    "environment"
+  ]
+}

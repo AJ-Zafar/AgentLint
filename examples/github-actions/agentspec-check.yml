@@ -1,0 +1,72 @@
+name: AgentSpec checks
+
+on:
+  pull_request:
+    paths:
+      - "**/*.agentspec.yaml"
+      - "**/*.agentspec.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+  workflow_dispatch:
+
+jobs:
+  agentspec:
+    name: Validate, lint and test AgentSpec files
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build AgentSpec CLI
+        run: pnpm build
+
+      - name: Validate AgentSpec files
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git ls-files -- '*.agentspec.yaml' '*.agentspec.yml' ':(exclude)packages/**/fixtures/**' ':(exclude)**/*.bad.agentspec.yaml')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No AgentSpec files found."
+            exit 0
+          fi
+          for file in "${files[@]}"; do
+            pnpm agentspec validate "$file" --json
+          done
+
+      - name: Lint AgentSpec files
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git ls-files -- '*.agentspec.yaml' '*.agentspec.yml' ':(exclude)packages/**/fixtures/**' ':(exclude)**/*.bad.agentspec.yaml')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No AgentSpec files found."
+            exit 0
+          fi
+          for file in "${files[@]}"; do
+            pnpm agentspec lint "$file" --json
+          done
+
+      - name: Test AgentSpec files
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git ls-files -- '*.agentspec.yaml' '*.agentspec.yml' ':(exclude)packages/**/fixtures/**' ':(exclude)**/*.bad.agentspec.yaml')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No AgentSpec files found."
+            exit 0
+          fi
+          for file in "${files[@]}"; do
+            pnpm agentspec test "$file" --json
+          done

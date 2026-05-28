@@ -1,0 +1,11 @@
+{
+  "kind": "action",
+  "name": "inspect_agent_config",
+  "riskLevel": "high",
+  "operations": [
+    "read_topics",
+    "read_connectors",
+    "read_environment_policy",
+    "read_publish_status"
+  ]
+}

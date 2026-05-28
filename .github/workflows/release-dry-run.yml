@@ -1,0 +1,37 @@
+name: Release dry run
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  release-dry-run:
+    name: Verify release readiness
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify package build
+        run: pnpm build
+
+      - name: Verify CLI runs
+        run: pnpm agentspec --help
+
+      - name: Verify examples validate
+        run: pnpm validate:examples

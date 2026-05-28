@@ -5,14 +5,44 @@
   "type": "module",
   "packageManager": "pnpm@10.11.0",
   "scripts": {
-    "build": "tsc -b packages/spec packages/parser packages/linter packages/test-runner packages/diff packages/copilot-studio packages/vscode-extension packages/cli",
+    "build": "tsc -b packages/spec packages/parser packages/linter packages/test-runner packages/diff packages/copilot-studio packages/copilot-studio-audit packages/vscode-extension packages/cli",
     "test": "vitest run",
     "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
-    "agentspec": "node packages/cli/dist/bin/agentspec.js"
+    "agentspec": "node packages/cli/dist/bin/agentspec.js",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
+    "typecheck": "tsc -b packages/spec packages/parser packages/linter packages/test-runner packages/diff packages/copilot-studio packages/copilot-studio-audit packages/vscode-extension packages/cli --pretty false",
+    "lint:examples": "sh -c 'set -e; for file in examples/*.agentspec.yaml; do case \"$file\" in *.bad.agentspec.yaml) continue;; esac; pnpm agentspec lint \"$file\"; done'",
+    "validate:examples": "sh -c 'set -e; for file in examples/*.agentspec.yaml; do case \"$file\" in *.bad.agentspec.yaml) continue;; esac; pnpm agentspec validate \"$file\"; done'",
+    "lint": "pnpm build && pnpm lint:examples",
+    "docs:linter-rules": "pnpm build && node scripts/generate-linter-rule-docs.mjs",
+    "test:examples": "sh -c 'set -e; for file in examples/*.agentspec.yaml; do case \"$file\" in *.bad.agentspec.yaml) continue;; esac; pnpm agentspec test \"$file\"; done'"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
     "typescript": "^6.0.3",
+    "vite": "^8.0.14",
+    "vitepress": "^1.6.4",
     "vitest": "^4.1.7"
-  }
+  },
+  "description": "Open-source specification, linter and test framework for AI agent instructions.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AJ-Zafar/AgentLint.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AJ-Zafar/AgentLint/issues"
+  },
+  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme",
+  "keywords": [
+    "ai",
+    "agents",
+    "instructions",
+    "linting",
+    "testing",
+    "yaml",
+    "specification"
+  ]
 }
