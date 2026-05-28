@@ -48,7 +48,7 @@ The current workspace includes:
 - `@agentspec/grammar`: structured condition grammar and behaviour graph compilation
 - `@agentspec/compiler`: experimental deterministic compiler from loose instructions to Agent Lint YAML
 - `@agentspec/cli`: CLI commands for validate, lint, test, diff, Copilot planning and Copilot audit
-- `agentspec-vscode`: VS Code extension package for diagnostics and current-file commands
+- `agentspec-vscode`: VS Code Language Server Protocol extension for diagnostics, completion, hover, quick fixes, go-to definition, graph preview, tests and diff commands
 - `@agentspec/copilot-studio`: experimental markdown implementation plan mapper for Copilot Studio
 - `@agentspec/copilot-studio-audit`: experimental local audit of Power Platform solution zip exports
 - VitePress documentation site under `docs/`

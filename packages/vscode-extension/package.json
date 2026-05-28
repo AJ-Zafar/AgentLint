@@ -1,7 +1,7 @@
 {
   "name": "agentspec-vscode",
-  "displayName": "AgentSpec",
-  "description": "VS Code extension for AgentSpec YAML diagnostics and commands.",
+  "displayName": "Agent Lint",
+  "description": "VS Code language server support for Agent Lint YAML files.",
   "version": "0.1.0",
   "publisher": "agentspec",
   "type": "module",
@@ -16,7 +16,10 @@
   "activationEvents": [
     "onLanguage:agentspec",
     "onCommand:agentspec.validateCurrentFile",
-    "onCommand:agentspec.lintCurrentFile"
+    "onCommand:agentspec.lintCurrentFile",
+    "onCommand:agentspec.previewGraph",
+    "onCommand:agentspec.runTests",
+    "onCommand:agentspec.compareDiff"
   ],
   "contributes": {
     "languages": [
@@ -44,6 +47,18 @@
       {
         "command": "agentspec.lintCurrentFile",
         "title": "AgentSpec: Lint Current File"
+      },
+      {
+        "command": "agentspec.previewGraph",
+        "title": "AgentSpec: Preview Behaviour Graph"
+      },
+      {
+        "command": "agentspec.runTests",
+        "title": "AgentSpec: Run Tests"
+      },
+      {
+        "command": "agentspec.compareDiff",
+        "title": "AgentSpec: Compare Current File"
       }
     ]
   },
@@ -52,8 +67,14 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@agentspec/diff": "workspace:*",
+    "@agentspec/grammar": "workspace:*",
+    "@agentspec/linter": "workspace:*",
     "@agentspec/parser": "workspace:*",
-    "@agentspec/linter": "workspace:*"
+    "@agentspec/test-runner": "workspace:*",
+    "vscode-languageclient": "^9.0.1",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.12"
   },
   "devDependencies": {
     "@types/vscode": "latest"
