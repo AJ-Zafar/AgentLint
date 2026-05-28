@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "agentspec": "./dist/bin/agentspec.js"
+    "agentspec": "./dist/bin/agentspec.js",
+    "agentlint": "./dist/bin/agentspec.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,16 +19,22 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@agentspec/compiler": "workspace:*",
+    "@agentspec/copilot-studio": "workspace:*",
+    "@agentspec/copilot-studio-audit": "workspace:*",
+    "@agentspec/diff": "workspace:*",
+    "@agentspec/grammar": "workspace:*",
     "@agentspec/linter": "workspace:*",
     "@agentspec/parser": "workspace:*",
     "@agentspec/spec": "workspace:*",
     "@agentspec/test-runner": "workspace:*",
-    "@agentspec/diff": "workspace:*",
-    "@agentspec/copilot-studio": "workspace:*",
     "commander": "^14.0.3",
-    "@agentspec/copilot-studio-audit": "workspace:*"
+    "yaml": "^2.9.0",
+    "@agentspec/replay": "workspace:*",
+    "@agentspec/coverage": "workspace:*",
+    "@agentspec/report": "workspace:*"
   },
-  "description": "Command-line interface for validating, linting, testing and diffing AgentSpec files.",
+  "description": "Command-line interface for validating, linting, testing, graphing and reporting on Agent Lint specs.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -37,5 +44,20 @@
   "bugs": {
     "url": "https://github.com/AJ-Zafar/AgentLint/issues"
   },
-  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme"
+  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "keywords": [
+    "agent-lint",
+    "agents",
+    "ai",
+    "instructions"
+  ]
 }

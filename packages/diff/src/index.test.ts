@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseAgentSpecFile } from "@agentspec/parser";
-import { diffAgentSpecs, type BehavioralChangeType } from "./index";
+import { diffAgentSpecs, simulateAgentSpecDiff, type BehavioralChangeType } from "./index";
 
 const oldFixture = "packages/diff/fixtures/old.agentspec.yaml";
 const newFixture = "packages/diff/fixtures/new.agentspec.yaml";
@@ -70,5 +70,42 @@ describe("AgentSpec behavioral diff", () => {
       changes: [],
       summary: { total: 0, low: 0, medium: 0, high: 0, breaking: 0 }
     });
+  });
+});
+
+
+describe("AgentSpec simulated behavioural diff", () => {
+  it("analyses deterministic scenario behaviour changes", async () => {
+    const [oldSpec, newSpec] = await Promise.all([parseAgentSpecFile(oldFixture), parseAgentSpecFile(newFixture)]);
+    const report = simulateAgentSpecDiff(oldSpec.document, newSpec.document);
+
+    expect(report.impact).toBe("breaking");
+    expect(report.summary.totalScenarios).toBeGreaterThan(0);
+    expect(report.routeSelectionChanges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ route: "fallback_human_support", beforeProbability: expect.any(Number), afterProbability: expect.any(Number) })
+      ])
+    );
+    expect(report.escalationFrequencyChange.before).toBeGreaterThan(report.escalationFrequencyChange.after);
+    expect(report.toolEligibilityChanges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ tool: "customer_email", beforeEligible: false, afterEligible: true })
+      ])
+    );
+    expect(report.fallbackInvocationChange.before).toBeGreaterThan(report.fallbackInvocationChange.after);
+    expect(report.constraintPrecedenceChanges).toEqual(expect.arrayContaining(["constraints.escalation changed"]));
+    expect(report.impactedRoutes).toEqual(expect.arrayContaining(["billing_support", "fallback_human_support"]));
+    expect(report.changedPaths).toContain("instructions.primary_goal");
+    expect(report.newlyUnreachableStates).toEqual(expect.arrayContaining(["tool:refund_approval"]));
+    expect(report.likelyRegressionAreas).toEqual(expect.arrayContaining(["fallback coverage", "tool eligibility", "escalation behaviour"]));
+  });
+
+  it("returns low impact for identical specs", async () => {
+    const parsed = await parseAgentSpecFile(oldFixture);
+    const report = simulateAgentSpecDiff(parsed.document, parsed.document);
+
+    expect(report.impact).toBe("low");
+    expect(report.summary.changedScenarioCount).toBe(0);
+    expect(report.likelyRegressionAreas).toEqual([]);
   });
 });

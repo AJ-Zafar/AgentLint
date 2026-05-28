@@ -18,7 +18,7 @@
     "@agentspec/spec": "workspace:*",
     "@agentspec/parser": "workspace:*"
   },
-  "description": "Deterministic local test runner for AgentSpec route, handoff and tool expectations.",
+  "description": "Deterministic local test runner for Agent Lint route, handoff and tool expectations.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -28,5 +28,20 @@
   "bugs": {
     "url": "https://github.com/AJ-Zafar/AgentLint/issues"
   },
-  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme"
+  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "keywords": [
+    "agent-lint",
+    "agents",
+    "ai",
+    "instructions"
+  ]
 }

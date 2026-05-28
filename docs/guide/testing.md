@@ -66,3 +66,12 @@ Summary: 1/1 passed, 0 failed, score 100%
 ## Limits
 
 The runner does not prove that a deployed agent will behave correctly. It tests the AgentSpec routing and expectation model. Use it as a fast local regression check alongside model evaluation, monitoring and human review.
+
+## Behavioural coverage
+
+```bash
+pnpm agentlint coverage ./agent.agentspec.yaml
+pnpm agentlint coverage ./agent.agentspec.yaml --json
+```
+
+Reports route, handoff, tool, constraint, fallback and test scenario coverage. The report includes percentage coverage, uncovered branches and recommended test scenarios.

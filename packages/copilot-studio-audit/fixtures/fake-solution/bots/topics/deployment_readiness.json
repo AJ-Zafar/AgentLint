@@ -6,5 +6,16 @@
     "deployment",
     "readiness",
     "environment"
+  ],
+  "generativeOrchestration": {
+    "enabled": true,
+    "mode": "generative",
+    "fallbackTopic": "fallback_maker_admin_review"
+  },
+  "actions": [
+    "inspect_agent_config"
+  ],
+  "knowledgeSources": [
+    "publishing_policy"
   ]
 }

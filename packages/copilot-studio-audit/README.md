@@ -33,3 +33,16 @@ pnpm agentspec copilot-audit \
   --solution packages/copilot-studio-audit/fixtures/fake-solution.zip \
   --json
 ```
+
+## Extract and drift
+
+```bash
+pnpm agentlint copilot-extract ./solution.zip
+pnpm agentlint copilot-drift --spec ./agent.agentspec.yaml --solution ./solution.zip
+```
+
+`copilot-extract` emits generated Agent Lint YAML. `copilot-drift` emits a drift report comparing a spec to extracted solution structure.
+
+## Copilot drift scoring
+
+`agentlint copilot-drift` calculates route drift, tool drift, handoff drift, governance drift and overall behavioural drift. Reports classify drift as `aligned`, `minor drift`, `significant drift` or `critical drift`, and include actionable remediation suggestions for missing topics, unexpected topics, missing actions, undocumented high-risk actions and fallback or handoff gaps.

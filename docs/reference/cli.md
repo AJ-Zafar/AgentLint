@@ -36,6 +36,13 @@ pnpm agentspec lint ./file.agentspec.yaml --json
 
 Runs the rule-based linter and prints grouped diagnostics. The process exits non-zero when lint issues are found.
 
+Apply built-in policy packs with `--policy <pack>`:
+
+```bash
+pnpm agentlint lint ./file.agentspec.yaml --policy public-sector-safe
+pnpm agentlint lint ./file.agentspec.yaml --policy financial-services --json
+```
+
 ## `test`
 
 ```bash
@@ -74,3 +81,69 @@ Generates an experimental Microsoft Copilot Studio implementation plan in markdo
 - `lint` exits non-zero when lint issues are found.
 - `test` exits non-zero when tests fail.
 - `diff` currently reports changes but does not fail solely because changes exist.
+
+## `graph`
+
+```bash
+pnpm agentlint graph ./file.agentspec.yaml
+pnpm agentlint graph ./file.agentspec.yaml --json
+```
+
+Compiles a spec into an internal behaviour graph. The graph command validates structured condition expressions, route dependencies, precedence definitions and unreachable branches.
+
+## `compile`
+
+```bash
+pnpm agentlint compile ./instructions.md
+```
+
+Experimentally compiles loose natural language instructions into structured Agent Lint YAML using deterministic heuristics. The output includes compiler confidence metadata and unresolved ambiguity warnings. No external LLM APIs are called.
+
+## `simulate-diff`
+
+```bash
+pnpm agentlint simulate-diff ./old.agentspec.yaml ./new.agentspec.yaml
+pnpm agentlint simulate-diff ./old.agentspec.yaml ./new.agentspec.yaml --json
+```
+
+Runs deterministic scenario generation over two specs and reports behavioural simulation changes, including route selection, escalation frequency, tool eligibility, fallback invocation, constraint precedence, impacted routes and likely regression areas.
+
+## `replay`
+
+```bash
+pnpm agentlint replay ./agent.agentspec.yaml --scenario angry-refund-user
+pnpm agentlint replay ./agent.agentspec.yaml --scenario angry-refund-user --json
+pnpm agentlint replay ./agent.agentspec.yaml --scenario angry-refund-user --mermaid
+```
+
+Runs deterministic path evaluation through the behaviour graph for a named scenario and reports the decision path, triggered constraints, selected route, tool eligibility checks, handoff reasoning and execution trace.
+
+## Autofix support
+
+Agent Lint can apply deterministic scaffolding fixes:
+
+```bash
+pnpm agentlint lint ./file.agentspec.yaml --fix
+pnpm agentlint lint ./file.agentspec.yaml --fix --json
+```
+
+Autofix can add missing fallback scaffolds, add default `risk_level: medium`, retarget undefined route targets to an existing handoff, add placeholder handoff conditions, annotate weak escalation wording and normalise YAML output.
+
+Autofix deliberately does not rewrite semantic intent. When a fix needs human judgement, Agent Lint adds explicit `TODO` or `agentlint_fixme` annotations and reports manual review warnings.
+
+## Behavioural coverage
+
+```bash
+pnpm agentlint coverage ./agent.agentspec.yaml
+pnpm agentlint coverage ./agent.agentspec.yaml --json
+```
+
+Reports route, handoff, tool, constraint, fallback and test scenario coverage. The report includes percentage coverage, uncovered branches and recommended test scenarios.
+
+## Governance evidence report
+
+```bash
+pnpm agentlint report ./agent.agentspec.yaml --format markdown
+```
+
+Generates a markdown evidence report for architecture review boards and enterprise governance sign-off. The report includes agent summary, lint findings, behavioural coverage, scenario replay results, risk analysis, escalation assurance, tool access controls and policy compliance checks.

@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "./report.tsbuildinfo"
+  },
+  "references": [
+    { "path": "../spec" },
+    { "path": "../linter" },
+    { "path": "../coverage" },
+    { "path": "../replay" }
+  ],
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}

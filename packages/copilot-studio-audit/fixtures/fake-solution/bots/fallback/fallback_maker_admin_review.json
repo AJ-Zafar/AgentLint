@@ -1,0 +1,10 @@
+{
+  "kind": "fallback",
+  "name": "fallback_maker_admin_review",
+  "target": "handoff:maker_admin_review",
+  "triggers": [
+    "fallback",
+    "unclear",
+    "policy gap"
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "name": "@agentspec/copilot-studio-audit",
   "version": "0.1.0",
-  "description": "Experimental local audit of Microsoft Copilot Studio solution exports against AgentSpec.",
+  "description": "Experimental local audit and drift analysis for Microsoft Copilot Studio solution exports.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -28,5 +28,24 @@
   "bugs": {
     "url": "https://github.com/AJ-Zafar/AgentLint/issues"
   },
-  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme"
+  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "keywords": [
+    "agent-lint",
+    "agents",
+    "ai",
+    "experimental",
+    "instructions"
+  ],
+  "agentLint": {
+    "status": "experimental"
+  }
 }

@@ -20,6 +20,7 @@ The AgentSpec linter is rule-based. Each rule is independent and returns a norma
 | Rule | Severity | Description |
 | --- | --- | --- |
 | `conflicting-do-and-do-not` | error | Detects instructions that appear in both do and do_not lists. |
+| `conflicting-intent-strength` | warning | Flags instructions that combine absolute escalation with self-resolution language. |
 | `duplicate-route-trigger` | warning | Detects route triggers reused across multiple routes. |
 | `forbidden-operation-not-enforced` | warning | Checks forbidden tool operations are reflected in instructions or constraints. |
 | `handoff-without-condition` | error | Requires each handoff to describe the condition that triggers it. |
@@ -28,9 +29,13 @@ The AgentSpec linter is rule-based. Each rule is independent and returns a norma
 | `missing-primary-goal` | error | Requires instructions.primary_goal to contain a clear objective. |
 | `no-escalation-path` | error | Requires a complete escalation path with constraints, handoffs and a route to a handoff. |
 | `route-target-not-defined` | error | Checks that every route target references an existing tool or handoff. |
+| `subjective-qualifier` | warning | Flags subjective qualifiers such as appropriately, carefully, reasonably, usually and generally. |
 | `test-without-assertions` | warning | Requires each test scenario to include at least one assertion. |
 | `tool-without-risk-level` | warning | Requires tools to declare risk_level metadata. |
+| `undefined-confidence-language` | warning | Flags confidence language without a numeric threshold or condition. |
+| `undefined-escalation-threshold` | error | Flags escalation language that lacks a concrete threshold. |
 | `vague-instruction-language` | warning | Flags subjective instruction language such as be careful or use best judgement. |
+| `weak-fallback-wording` | warning | Flags fallback instructions such as try your best or use judgement. |
 
 ## conflicting-do-and-do-not
 
@@ -62,6 +67,36 @@ do_not:
 ### Suggested fix
 
 Remove the duplicate meaning from one list, or rewrite the instructions so the boundary is explicit.
+
+## conflicting-intent-strength
+
+- **Severity:** warning
+- **Description:** Flags instructions that combine absolute escalation with self-resolution language.
+
+### Why it matters
+
+Conflicting intent strength makes priority unclear and should be represented as formal precedence or route conditions.
+
+### Bad example
+
+```yaml
+instructions:
+  do:
+    - Always escalate but attempt self-resolution first.
+```
+
+### Good example
+
+```yaml
+precedence:
+  routes:
+    - self_resolution
+    - escalation_review
+```
+
+### Suggested fix
+
+Express the intended order with precedence.routes and explicit route conditions.
 
 ## duplicate-route-trigger
 
@@ -304,6 +339,37 @@ routes:
 
 Define the referenced tool or handoff, or update the route target to an existing name.
 
+## subjective-qualifier
+
+- **Severity:** warning
+- **Description:** Flags subjective qualifiers such as appropriately, carefully, reasonably, usually and generally.
+
+### Why it matters
+
+Subjective qualifiers are not formal enough for repeatable tests or behaviour graph conditions.
+
+### Bad example
+
+```yaml
+instructions:
+  do:
+    - Handle requests appropriately and carefully.
+```
+
+### Good example
+
+```yaml
+routes:
+  - conditions:
+      all:
+        - risk == low
+        - authenticated == true
+```
+
+### Suggested fix
+
+Replace subjective qualifiers with formal conditions, thresholds or explicit route constraints.
+
 ## test-without-assertions
 
 - **Severity:** warning
@@ -364,6 +430,65 @@ tools:
 
 Set risk_level to low, medium, high or critical.
 
+## undefined-confidence-language
+
+- **Severity:** warning
+- **Description:** Flags confidence language without a numeric threshold or condition.
+
+### Why it matters
+
+Confidence references need formal thresholds to support deterministic tests and graph evaluation.
+
+### Bad example
+
+```yaml
+constraints:
+  escalation:
+    - Escalate when uncertain or if low confidence.
+```
+
+### Good example
+
+```yaml
+conditions:
+  any:
+    - confidence < 0.7
+    - verified == false
+```
+
+### Suggested fix
+
+Replace undefined confidence language with numeric confidence conditions.
+
+## undefined-escalation-threshold
+
+- **Severity:** error
+- **Description:** Flags escalation language that lacks a concrete threshold.
+
+### Why it matters
+
+Escalation rules need formal conditions so reviewers know when handoff behaviour should trigger.
+
+### Bad example
+
+```yaml
+constraints:
+  escalation:
+    - Escalate if difficult.
+```
+
+### Good example
+
+```yaml
+constraints:
+  escalation:
+    - Escalate when amount >= 50 or authenticated == false.
+```
+
+### Suggested fix
+
+Replace vague escalation wording with formal conditions in route conditions or constraint evaluation trees.
+
 ## vague-instruction-language
 
 - **Severity:** warning
@@ -391,6 +516,38 @@ secondary_goals:
 
 Replace subjective language with observable, testable behaviour.
 
+## weak-fallback-wording
+
+- **Severity:** warning
+- **Description:** Flags fallback instructions such as try your best or use judgement.
+
+### Why it matters
+
+Weak fallback wording is not formal enough to produce auditable fallback behaviour.
+
+### Bad example
+
+```yaml
+instructions:
+  do:
+    - Try your best and use judgement.
+```
+
+### Good example
+
+```yaml
+routes:
+  - name: fallback_human_support
+    target: handoff:human_support
+    conditions:
+      any:
+        - confidence < 0.7
+```
+
+### Suggested fix
+
+Replace weak fallback wording with formal fallback routes, handoff targets and conditions.
+
 ## Design principles
 
 Rules should be deterministic, explainable and conservative. The linter should identify likely engineering issues without pretending to prove that an AI system is safe.
@@ -401,3 +558,16 @@ When adding rules, prefer:
 - stable paths into the YAML structure
 - actionable suggestions
 - tests for positive and negative cases
+
+## Autofix support
+
+Agent Lint can apply deterministic scaffolding fixes:
+
+```bash
+pnpm agentlint lint ./file.agentspec.yaml --fix
+pnpm agentlint lint ./file.agentspec.yaml --fix --json
+```
+
+Autofix can add missing fallback scaffolds, add default `risk_level: medium`, retarget undefined route targets to an existing handoff, add placeholder handoff conditions, annotate weak escalation wording and normalise YAML output.
+
+Autofix deliberately does not rewrite semantic intent. When a fix needs human judgement, Agent Lint adds explicit `TODO` or `agentlint_fixme` annotations and reports manual review warnings.

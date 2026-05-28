@@ -50,3 +50,13 @@ Changes are classified as:
 Behavioural diffs are useful in pull requests and release reviews. They help reviewers focus on the parts of a spec that affect runtime behaviour or governance assumptions.
 
 The diff result is not a risk assessment by itself. Treat it as a structured prompt for review.
+
+## Behavioural simulation
+
+For a deeper local comparison, use `simulate-diff`:
+
+```bash
+pnpm agentlint simulate-diff old.agentspec.yaml new.agentspec.yaml
+```
+
+The simulation engine generates deterministic scenarios from route triggers and declared tests. It compares old and new inferred outcomes for route selection, escalation frequency, tool eligibility, fallback invocation and constraint precedence. This is not model simulation. It is a local regression analysis over the Agent Lint spec structure.

@@ -1,7 +1,9 @@
 {
   "kind": "action",
   "name": "delete_environment",
+  "displayName": "Delete environment",
   "riskLevel": "critical",
+  "requiresAuthentication": true,
   "operations": [
     "delete_environment"
   ]

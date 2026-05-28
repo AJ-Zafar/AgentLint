@@ -1,5 +1,11 @@
 {
   "kind": "flow",
   "name": "inspect_agent_config_flow",
-  "action": "inspect_agent_config"
+  "trigger": "manual",
+  "actions": [
+    "read_topics",
+    "read_connectors",
+    "read_environment_policy",
+    "read_publish_status"
+  ]
 }

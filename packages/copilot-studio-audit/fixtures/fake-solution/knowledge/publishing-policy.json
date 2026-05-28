@@ -1,5 +1,6 @@
 {
   "kind": "knowledge",
   "name": "publishing_policy",
-  "source": "policy://publishing"
+  "source": "policy://publishing",
+  "description": "Publishing and DLP policy reference"
 }

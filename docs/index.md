@@ -20,7 +20,7 @@ AgentSpec currently provides:
 - a rule-based linter for common instruction design issues
 - a deterministic test runner for route, handoff, tool-call and assertion checks
 - behavioural diffs for reviewing instruction changes
-- a VS Code extension package for inline diagnostics
+- a VS Code Language Server Protocol extension for inline diagnostics, completion, hover and commands
 - an experimental Copilot Studio planning mapper
 
 ## Who it is for

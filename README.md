@@ -12,6 +12,8 @@ AI instruction engineering is in a similar place today. Agent instructions are o
 
 Agent Lint exists to bring some of that missing engineering discipline to AI agent instructions.
 
+This repository is prepared for an experimental v0.1.0 release. See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
+
 Thanks to Chris Huntingford for highlighting the "HTML before VS Code" comparison that helped shape the framing for this project.
 
 ## What Agent Lint is
@@ -42,11 +44,13 @@ The current workspace includes:
 
 - `@agentspec/spec`: TypeScript types, Zod validation and JSON schema generation
 - `@agentspec/parser`: YAML parser and validation wrapper for `.agentspec.yaml` files
-- `@agentspec/linter`: rule-based linter with documented rule metadata
+- `@agentspec/linter`: rule-based linter with documented rule metadata and experimental policy packs
 - `@agentspec/test-runner`: deterministic local route, handoff, tool and assertion checks
 - `@agentspec/diff`: behavioural diff engine for comparing instruction specs
+- `@agentspec/grammar`: structured condition grammar and behaviour graph compilation
+- `@agentspec/compiler`: experimental deterministic compiler from loose instructions to Agent Lint YAML
 - `@agentspec/cli`: CLI commands for validate, lint, test, diff, Copilot planning and Copilot audit
-- `agentspec-vscode`: VS Code extension package for diagnostics and current-file commands
+- `agentspec-vscode`: VS Code Language Server Protocol extension for diagnostics, completion, hover, quick fixes, go-to definition, graph preview, tests and diff commands
 - `@agentspec/copilot-studio`: experimental markdown implementation plan mapper for Copilot Studio
 - `@agentspec/copilot-studio-audit`: experimental local audit of Power Platform solution zip exports
 - VitePress documentation site under `docs/`
@@ -214,6 +218,29 @@ pnpm agentspec lint ./file.agentspec.yaml --json
 
 Runs the rule-based linter and exits non-zero when issues are found.
 
+
+## Autofix support
+
+Agent Lint can apply deterministic scaffolding fixes:
+
+```bash
+pnpm agentlint lint ./file.agentspec.yaml --fix
+pnpm agentlint lint ./file.agentspec.yaml --fix --json
+```
+
+Autofix can add missing fallback scaffolds, add default `risk_level: medium`, retarget undefined route targets to an existing handoff, add placeholder handoff conditions, annotate weak escalation wording and normalise YAML output.
+
+Autofix deliberately does not rewrite semantic intent. When a fix needs human judgement, Agent Lint adds explicit `TODO` or `agentlint_fixme` annotations and reports manual review warnings.
+
+### Policy packs
+
+```bash
+pnpm agentlint lint ./file.agentspec.yaml --policy public-sector-safe
+pnpm agentlint lint ./file.agentspec.yaml --policy healthcare --json
+```
+
+Built-in experimental policy packs add reusable domain checks for `public-sector-safe`, `financial-services`, `healthcare` and `internal-enterprise`. Packs can require constraints, forbid tool capabilities, require escalation language, check privacy boundaries and require fallback routing.
+
 ### Test
 
 ```bash
@@ -223,6 +250,15 @@ pnpm agentspec test ./file.agentspec.yaml --json
 
 Runs deterministic local checks over route, handoff, expected tool calls, forbidden tool calls and simple assertions.
 
+### Simulate diff
+
+```bash
+pnpm agentlint simulate-diff ./old.agentspec.yaml ./new.agentspec.yaml
+pnpm agentlint simulate-diff ./old.agentspec.yaml ./new.agentspec.yaml --json
+```
+
+Runs deterministic scenario generation over old and new specs to estimate route selection changes, escalation frequency changes, tool eligibility changes, fallback invocation changes and constraint precedence changes. The report highlights impacted routes, changed paths, newly unreachable states and likely regression areas.
+
 ### Diff
 
 ```bash
@@ -231,6 +267,33 @@ pnpm agentspec diff ./old.agentspec.yaml ./new.agentspec.yaml --json
 ```
 
 Reports behavioural impact rather than raw line changes. The implemented diff detects changed goals, changed `do` and `do_not` instructions, added or removed tools, increased tool risk, changed route triggers, removed fallback behaviour, changed escalation conditions, changed handoff destinations and changed tests.
+
+### Replay scenario
+
+```bash
+pnpm agentlint replay ./agent.agentspec.yaml --scenario angry-refund-user
+pnpm agentlint replay ./agent.agentspec.yaml --scenario angry-refund-user --json
+pnpm agentlint replay ./agent.agentspec.yaml --scenario angry-refund-user --mermaid
+```
+
+Runs deterministic path evaluation through the behaviour graph for a named scenario. The report includes the decision path, triggered constraints, selected route, rejected routes, branch outcomes, tool eligibility checks, handoff reasoning and a step-by-step execution trace. Use `--mermaid` to generate a visual execution graph for documentation or review.
+
+### Compile natural language instructions
+
+```bash
+pnpm agentlint compile ./instructions.md
+```
+
+Experimentally compiles loose natural language instructions into structured Agent Lint YAML using deterministic heuristics. The compiler extracts likely goals, rules, constraints, tool references, routes and escalation rules, then adds confidence metadata and ambiguity warnings. It does not call external LLM APIs.
+
+### Behaviour graph
+
+```bash
+pnpm agentlint graph ./file.agentspec.yaml
+pnpm agentlint graph ./file.agentspec.yaml --json
+```
+
+Compiles a spec into an internal directed behaviour graph, including route conditions, decisions, tools, constraints, handoffs, fallback paths, terminal responses, dependencies, targets and precedence. The grammar layer validates invalid operators, circular dependencies, dead-end states, unreachable nodes, isolated routes, unreachable branches and conflicting precedence definitions. Use `--mermaid` to generate a Mermaid behaviour graph for documentation.
 
 ### Copilot Studio plan
 
@@ -244,11 +307,13 @@ Generates an experimental markdown implementation plan that maps the spec to Cop
 ### Copilot Studio audit
 
 ```bash
+pnpm agentspec copilot-extract ./solution.zip
+pnpm agentspec copilot-drift --spec ./file.agentspec.yaml --solution ./solution.zip
 pnpm agentspec copilot-audit --spec ./file.agentspec.yaml --solution ./solution.zip
 pnpm agentspec copilot-audit --spec ./file.agentspec.yaml --solution ./solution.zip --json
 ```
 
-Experimentally inspects a local Power Platform solution export zip and compares likely Copilot Studio components with the expected instruction spec.
+Experimentally inspects a local Power Platform solution export zip. `copilot-extract` generates an Agent Lint spec from extracted components, `copilot-drift` reports drift between an existing spec and the export, and `copilot-audit` produces the full audit report.
 
 ## Copilot Studio angle
 
@@ -314,7 +379,7 @@ The project should keep the core specification, parser, linter, deterministic te
 
 ## Status: experimental
 
-Agent Lint is experimental and early-stage. The YAML format, linter rules, package boundaries and Copilot Studio extraction logic may change as the project is tested against more real-world agent instruction workflows.
+Agent Lint is experimental and early-stage. The YAML format, linter rules, package boundaries and Copilot Studio extraction logic may change as the project is tested against more real-world agent instruction workflows. Several packages are explicitly marked experimental in package metadata.
 
 Use it today as an engineering assurance tool for review, CI checks and regression detection. Do not treat it as a guarantee of deterministic AI behaviour.
 
@@ -353,3 +418,24 @@ Thanks to Chris Huntingford for highlighting the "HTML before VS Code" compariso
 Agent Lint does not provide deterministic control over AI systems. LLM-backed agents can still behave unexpectedly because outputs depend on model behaviour, runtime context, retrieval, tools and deployment configuration.
 
 Agent Lint is an assurance and engineering discipline tool. It helps teams structure instructions, find common problems, run local checks and review behavioural changes before deployment. It should be used alongside runtime monitoring, access controls, human review, safety evaluation and platform-specific governance.
+
+## Behavioural coverage
+
+```bash
+pnpm agentlint coverage ./agent.agentspec.yaml
+pnpm agentlint coverage ./agent.agentspec.yaml --json
+```
+
+Reports route, handoff, tool, constraint, fallback and test scenario coverage. The report includes percentage coverage, uncovered branches and recommended test scenarios.
+
+## Copilot drift scoring
+
+`agentlint copilot-drift` calculates route drift, tool drift, handoff drift, governance drift and overall behavioural drift. Reports classify drift as `aligned`, `minor drift`, `significant drift` or `critical drift`, and include actionable remediation suggestions for missing topics, unexpected topics, missing actions, undocumented high-risk actions and fallback or handoff gaps.
+
+## Governance evidence report
+
+```bash
+pnpm agentlint report ./agent.agentspec.yaml --format markdown
+```
+
+Generates a markdown evidence report for architecture review boards and enterprise governance sign-off. The report includes agent summary, lint findings, behavioural coverage, scenario replay results, risk analysis, escalation assurance, tool access controls and policy compliance checks.

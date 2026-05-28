@@ -17,7 +17,7 @@
   "dependencies": {
     "@agentspec/spec": "workspace:*"
   },
-  "description": "Rule-based linter for AgentSpec instruction engineering issues.",
+  "description": "Rule-based linter and policy pack engine for Agent Lint instruction engineering issues.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -27,5 +27,20 @@
   "bugs": {
     "url": "https://github.com/AJ-Zafar/AgentLint/issues"
   },
-  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme"
+  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "keywords": [
+    "agent-lint",
+    "agents",
+    "ai",
+    "instructions"
+  ]
 }

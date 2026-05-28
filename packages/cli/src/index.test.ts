@@ -86,6 +86,17 @@ async function writeFixture(name: string, contents: string): Promise<string> {
 }
 
 describe("agentspec CLI", () => {
+
+  it("explains a lint rule", async () => {
+    const result = await runCli(["explain-lint", "subjective-qualifier"], "agentlint");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("subjective-qualifier");
+    expect(result.stdout).toContain("Why it matters");
+    expect(result.stdout).toContain("Bad example");
+    expect(result.stdout).toContain("Suggested fix");
+  });
+
   it("shows help with a zero exit code", async () => {
     const result = await runCli(["--help"]);
 
@@ -155,6 +166,87 @@ describe("agentspec CLI", () => {
     expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
   });
 
+
+  it("lints with a built-in policy pack", async () => {
+    const result = await runCli(["lint", "examples/public-sector-casework.agentspec.yaml", "--policy", "public-sector-safe"], "agentlint");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("no lint issues");
+  });
+
+  it("reports policy pack findings in JSON output", async () => {
+    const filePath = await writeFixture(
+      "policy-json.agentspec.yaml",
+      validYaml.replace("Fallback to human_support when policy coverage is unclear.", "Use normal support when unclear.")
+    );
+    const result = await runCli(["lint", filePath, "--policy", "public-sector-safe", "--json"], "agentlint");
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(1);
+    expect(parsed.policyPacks).toEqual(["public-sector-safe"]);
+    expect(parsed.issues).toEqual(expect.arrayContaining([expect.objectContaining({ ruleId: "policy-required-constraint" })]));
+  });
+
+
+
+  it("applies deterministic lint autofixes and reports manual review", async () => {
+    const filePath = await writeFixture(
+      "autofix.agentspec.yaml",
+      validYaml
+        .replace("target: tool:account_lookup", "target: tool:missing_tool")
+        .replace("    risk_level: medium\n", "")
+        .replace("condition: Refund approval, unclear account ownership, or policy exception.", "condition: \"\"")
+        .replace("Fallback to human_support when policy coverage is unclear.", "Use judgement when unclear.")
+    );
+
+    const result = await runCli(["lint", "--fix", filePath], "agentlint");
+    const fixed = await import("node:fs/promises").then((fs) => fs.readFile(filePath, "utf8"));
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain("Fixes applied");
+    expect(result.stdout).toContain("Added default risk_level");
+    expect(result.stdout).toContain("Retargeted route");
+    expect(result.stdout).toContain("Manual review required");
+    expect(fixed).toContain("risk_level: medium");
+    expect(fixed).toContain("target: handoff:human_support");
+    expect(fixed).toContain("TODO: define handoff condition");
+    expect(fixed).toContain("agentlint_fixme: review escalation wording");
+  });
+
+  it("emits deterministic JSON for lint autofix", async () => {
+    const filePath = await writeFixture("autofix-json.agentspec.yaml", validYaml.replace("    risk_level: medium\n", ""));
+    const result = await runCli(["lint", "--fix", "--json", filePath], "agentlint");
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(1);
+    expect(parsed.command).toBe("lint");
+    expect(parsed.fix.applied).toEqual(expect.arrayContaining([expect.objectContaining({ code: "added-risk-level" })]));
+    expect(parsed.fix.manualReviewRequired).toEqual(expect.any(Array));
+    expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+  });
+
+
+  it("reports behavioural coverage", async () => {
+    const result = await runCli(["coverage", "examples/customer-support.agentspec.yaml"], "agentlint");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Agent Lint Behavioural Coverage");
+    expect(result.stdout).toContain("Route coverage");
+    expect(result.stdout).toContain("Recommended test scenarios");
+  });
+
+  it("emits deterministic JSON for behavioural coverage", async () => {
+    const result = await runCli(["coverage", "examples/customer-support.agentspec.yaml", "--json"], "agentlint");
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(parsed.command).toBe("coverage");
+    expect(parsed.file).toBe("examples/customer-support.agentspec.yaml");
+    expect(parsed.report.routeCoverage.percentage).toEqual(expect.any(Number));
+    expect(parsed.report.recommendedTestScenarios).toEqual(expect.any(Array));
+    expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+  });
+
   it("runs deterministic declared tests without live model calls", async () => {
     const filePath = await writeFixture("test.agentspec.yaml", validYaml);
     const result = await runCli(["test", filePath]);
@@ -200,6 +292,105 @@ describe("agentspec CLI", () => {
   });
 
 
+
+
+
+
+  it("generates a governance evidence report", async () => {
+    const result = await runCli([
+      "report",
+      "packages/replay/fixtures/angry-refund-user.agentspec.yaml",
+      "--format",
+      "markdown"
+    ], "agentlint");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("# Governance Evidence Report");
+    expect(result.stdout).toContain("## 1. Agent summary");
+    expect(result.stdout).toContain("## 8. Policy compliance checks");
+  });
+
+  it("replays a named scenario through the behaviour graph", async () => {
+    const filePath = await writeFixture(
+      "replay.agentspec.yaml",
+      validYaml.replace(
+        "tests:\n  - name: billing refund route",
+        "scenarios:\n  - name: angry-refund-user\n    input: I am angry and want a refund of 75\n    context:\n      intent: refund\n      authenticated: true\n      amount: 75\n      sentiment: angry\ntests:\n  - name: billing refund route"
+      )
+    );
+
+    const result = await runCli(["replay", filePath, "--scenario", "angry-refund-user"], "agentlint");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Agent Lint Scenario Replay");
+    expect(result.stdout).toContain("Decision path");
+    expect(result.stdout).toContain("Selected route: billing_support");
+    expect(result.stdout).toContain("Tool eligibility checks");
+  });
+
+
+
+  it("renders replay Mermaid trace output", async () => {
+    const result = await runCli([
+      "replay",
+      "packages/replay/fixtures/angry-refund-user.agentspec.yaml",
+      "--scenario",
+      "angry-refund-user",
+      "--mermaid"
+    ], "agentlint");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("flowchart TD");
+    expect(result.stdout).toContain("decision_small_refund");
+    expect(result.stdout).toContain("account_lookup not eligible");
+  });
+
+  it("compiles loose instructions into Agent Lint YAML", async () => {
+    const result = await runCli(["compile", "packages/compiler/fixtures/support-instructions.md"], "agentlint");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("generated_by: agentlint-natural-language-compiler");
+    expect(result.stdout).toContain("primary_goal: Help customers with refund and invoice questions using");
+    expect(result.stdout).toContain("policy-approved routes.");
+    expect(result.stdout).toContain("confidence:");
+    expect(result.stdout).toContain("warnings:");
+  });
+
+  it("prints a compiled behaviour graph using the agentlint alias", async () => {
+    const filePath = await writeFixture(
+      "graph.agentspec.yaml",
+      validYaml.replace(
+        "priority: 10",
+        "priority: 10\n    conditions:\n      all:\n        - intent == refund\n        - authenticated == true\n        - amount < 50"
+      )
+    );
+
+    const result = await runCli(["graph", filePath, "--json"], "agentlint");
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(parsed.command).toBe("graph");
+    expect(parsed.file).toBe(filePath);
+    expect(parsed.diagnostics.every((diagnostic: { severity: string }) => diagnostic.severity !== "error")).toBe(true);
+    expect(parsed.graph.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ id: "route:billing_support" })]));
+  });
+
+
+
+  it("prints Mermaid and ASCII behaviour graph formats", async () => {
+    const filePath = await writeFixture("graph-formats.agentspec.yaml", validYaml);
+
+    const mermaid = await runCli(["graph", filePath, "--mermaid"], "agentlint");
+    const ascii = await runCli(["graph", filePath, "--ascii"], "agentlint");
+
+    expect(mermaid.exitCode).toBe(0);
+    expect(mermaid.stdout).toContain("flowchart LR");
+    expect(mermaid.stdout).toContain("route_billing_support");
+    expect(ascii.exitCode).toBe(0);
+    expect(ascii.stdout).toContain("Agent Lint Behaviour Graph");
+    expect(ascii.stdout).toContain("conditional_transition");
+  });
+
   it("generates a Copilot Studio implementation plan", async () => {
     const result = await runCli(["copilot-plan", "examples/copilot-studio-agent.agentspec.yaml"]);
 
@@ -223,6 +414,36 @@ describe("agentspec CLI", () => {
     expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
   });
 
+
+
+  it("extracts a Copilot Studio solution into an Agent Lint spec", async () => {
+    const result = await runCli(["copilot-extract", "packages/copilot-studio-audit/fixtures/fake-solution.zip"], "agentlint");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("name: Copilot Studio Readiness Agent");
+    expect(result.stdout).toContain("deployment_readiness");
+    expect(result.stdout).toContain("delete_environment");
+  });
+
+  it("reports Copilot Studio drift", async () => {
+    const result = await runCli([
+      "copilot-drift",
+      "--spec",
+      "examples/copilot-studio-agent.agentspec.yaml",
+      "--solution",
+      "packages/copilot-studio-audit/fixtures/fake-solution.zip",
+      "--json"
+    ], "agentlint");
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(parsed.command).toBe("copilot-drift");
+    expect(parsed.drift.summary.driftCount).toBe(3);
+    expect(parsed.drift.scores.overallBehaviouralDrift).toBe(31);
+    expect(parsed.drift.classification).toBe("significant drift");
+    expect(parsed.drift.remediation).toEqual(expect.arrayContaining([expect.stringContaining("connector_review")]));
+    expect(parsed.drift.items).toEqual(expect.arrayContaining([expect.objectContaining({ type: "missing-topic", name: "connector_review" })]));
+  });
 
   it("audits a Copilot Studio solution export", async () => {
     const result = await runCli([
@@ -257,8 +478,39 @@ describe("agentspec CLI", () => {
     expect(parsed.command).toBe("copilot-audit");
     expect(parsed.specFile).toBe("examples/copilot-studio-agent.agentspec.yaml");
     expect(parsed.solutionFile).toBe("packages/copilot-studio-audit/fixtures/fake-solution.zip");
-    expect(parsed.report.findings.expectedMissingTopics).toEqual(["connector_review", "fallback_maker_admin_review"]);
-    expect(parsed.report.findings.highRiskToolsNotDocumentedInAgentSpec).toEqual([{ name: "delete_environment", riskLevel: "critical" }]);
+    expect(parsed.report.findings.expectedMissingTopics).toEqual(["connector_review"]);
+    expect(parsed.report.findings.highRiskToolsNotDocumentedInAgentSpec).toEqual([{ name: "delete_environment", riskLevel: "critical", requiresAuthentication: true, operations: ["delete_environment"] }]);
+    expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+  });
+
+
+  it("simulates behavioural diff changes", async () => {
+    const result = await runCli([
+      "simulate-diff",
+      "packages/diff/fixtures/old.agentspec.yaml",
+      "packages/diff/fixtures/new.agentspec.yaml"
+    ], "agentlint");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Agent Lint Simulated Behavioural Diff");
+    expect(result.stdout).toContain("Behavioural impact: breaking");
+    expect(result.stdout).toContain("Likely regression areas");
+    expect(result.stdout).toContain("fallback coverage");
+  });
+
+  it("emits deterministic JSON for simulate-diff", async () => {
+    const result = await runCli([
+      "simulate-diff",
+      "packages/diff/fixtures/old.agentspec.yaml",
+      "packages/diff/fixtures/new.agentspec.yaml",
+      "--json"
+    ], "agentlint");
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(parsed.command).toBe("simulate-diff");
+    expect(parsed.report.impact).toBe("breaking");
+    expect(parsed.report.summary.changedScenarioCount).toBeGreaterThan(0);
     expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
   });
 

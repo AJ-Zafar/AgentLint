@@ -5,19 +5,20 @@
   "type": "module",
   "packageManager": "pnpm@10.11.0",
   "scripts": {
-    "build": "tsc -b packages/spec packages/parser packages/linter packages/test-runner packages/diff packages/copilot-studio packages/copilot-studio-audit packages/vscode-extension packages/cli",
+    "build": "tsc -b packages/spec packages/parser packages/linter packages/test-runner packages/diff packages/grammar packages/compiler packages/replay packages/coverage packages/report packages/copilot-studio packages/copilot-studio-audit packages/vscode-extension packages/cli",
     "test": "vitest run",
     "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
     "agentspec": "node packages/cli/dist/bin/agentspec.js",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
-    "typecheck": "tsc -b packages/spec packages/parser packages/linter packages/test-runner packages/diff packages/copilot-studio packages/copilot-studio-audit packages/vscode-extension packages/cli --pretty false",
+    "typecheck": "tsc -b packages/spec packages/parser packages/linter packages/test-runner packages/diff packages/grammar packages/compiler packages/replay packages/coverage packages/report packages/copilot-studio packages/copilot-studio-audit packages/vscode-extension packages/cli --pretty false",
     "lint:examples": "sh -c 'set -e; for file in examples/*.agentspec.yaml; do case \"$file\" in *.bad.agentspec.yaml) continue;; esac; pnpm agentspec lint \"$file\"; done'",
     "validate:examples": "sh -c 'set -e; for file in examples/*.agentspec.yaml; do case \"$file\" in *.bad.agentspec.yaml) continue;; esac; pnpm agentspec validate \"$file\"; done'",
     "lint": "pnpm build && pnpm lint:examples",
     "docs:linter-rules": "pnpm build && node scripts/generate-linter-rule-docs.mjs",
-    "test:examples": "sh -c 'set -e; for file in examples/*.agentspec.yaml; do case \"$file\" in *.bad.agentspec.yaml) continue;; esac; pnpm agentspec test \"$file\"; done'"
+    "test:examples": "sh -c 'set -e; for file in examples/*.agentspec.yaml; do case \"$file\" in *.bad.agentspec.yaml) continue;; esac; pnpm agentspec test \"$file\"; done'",
+    "agentlint": "node packages/cli/dist/bin/agentspec.js"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

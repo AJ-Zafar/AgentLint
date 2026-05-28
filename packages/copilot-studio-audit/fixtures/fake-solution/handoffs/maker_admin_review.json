@@ -1,5 +1,6 @@
 {
   "kind": "handoff",
   "name": "maker_admin_review",
-  "destination": "queue:maker-admin-review"
+  "destination": "queue:maker-admin-review",
+  "condition": "Publishing or connector risk requires administrator review."
 }

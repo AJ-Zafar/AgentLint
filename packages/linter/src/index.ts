@@ -12,12 +12,24 @@ export type LintRuleId =
   | "duplicate-route-trigger"
   | "test-without-assertions"
   | "forbidden-operation-not-enforced"
-  | "no-escalation-path";
+  | "no-escalation-path"
+  | "subjective-qualifier"
+  | "undefined-escalation-threshold"
+  | "conflicting-intent-strength"
+  | "weak-fallback-wording"
+  | "undefined-confidence-language";
+
+export type PolicyRuleId =
+  | "policy-required-constraint"
+  | "policy-forbidden-tool"
+  | "policy-escalation-required"
+  | "policy-privacy-boundary"
+  | "policy-mandatory-fallback";
 
 export type LintIssueSeverity = "error" | "warning" | "info";
 
 export type LintIssue = {
-  ruleId: LintRuleId;
+  ruleId: LintRuleId | PolicyRuleId;
   severity: LintIssueSeverity;
   message: string;
   path: string;
@@ -42,6 +54,24 @@ export type LintRule = {
   severity: LintIssueSeverity;
   docs: LintRuleDocumentation;
   run: (context: LintContext) => LintIssue[];
+};
+
+
+export type PolicyPackName = "public-sector-safe" | "financial-services" | "healthcare" | "internal-enterprise";
+
+export type PolicyPack = {
+  name: PolicyPackName;
+  description: string;
+  requiredConstraints: string[];
+  forbiddenToolTerms: string[];
+  escalationRequirements: string[];
+  privacyBoundaries: string[];
+  mandatoryFallbackTerms: string[];
+};
+
+export type LintOptions = {
+  rules?: LintRule[];
+  policyPacks?: PolicyPackName[];
 };
 
 type ParsedTarget = { kind: "tool" | "handoff"; name: string };
@@ -152,9 +182,120 @@ export const lintRuleDocumentation: Record<LintRuleId, LintRuleDocumentation> = 
     goodExample: "constraints:\n  escalation:\n    - Fallback to human_support when unclear.\nroutes:\n  - target: handoff:human_support",
     suggestedFix: "Define escalation constraints, at least one handoff and a route that targets handoff:<name>."
   }
+  ,
+  "subjective-qualifier": {
+    description: "Flags subjective qualifiers such as appropriately, carefully, reasonably, usually and generally.",
+    whyItMatters: "Subjective qualifiers are not formal enough for repeatable tests or behaviour graph conditions.",
+    badExample: "instructions:\n  do:\n    - Handle requests appropriately and carefully.",
+    goodExample: "routes:\n  - conditions:\n      all:\n        - risk == low\n        - authenticated == true",
+    suggestedFix: "Replace subjective qualifiers with formal conditions, thresholds or explicit route constraints."
+  },
+  "undefined-escalation-threshold": {
+    description: "Flags escalation language that lacks a concrete threshold.",
+    whyItMatters: "Escalation rules need formal conditions so reviewers know when handoff behaviour should trigger.",
+    badExample: "constraints:\n  escalation:\n    - Escalate if difficult.",
+    goodExample: "constraints:\n  escalation:\n    - Escalate when amount >= 50 or authenticated == false.",
+    suggestedFix: "Replace vague escalation wording with formal conditions in route conditions or constraint evaluation trees."
+  },
+  "conflicting-intent-strength": {
+    description: "Flags instructions that combine absolute escalation with self-resolution language.",
+    whyItMatters: "Conflicting intent strength makes priority unclear and should be represented as formal precedence or route conditions.",
+    badExample: "instructions:\n  do:\n    - Always escalate but attempt self-resolution first.",
+    goodExample: "precedence:\n  routes:\n    - self_resolution\n    - escalation_review",
+    suggestedFix: "Express the intended order with precedence.routes and explicit route conditions."
+  },
+  "weak-fallback-wording": {
+    description: "Flags fallback instructions such as try your best or use judgement.",
+    whyItMatters: "Weak fallback wording is not formal enough to produce auditable fallback behaviour.",
+    badExample: "instructions:\n  do:\n    - Try your best and use judgement.",
+    goodExample: "routes:\n  - name: fallback_human_support\n    target: handoff:human_support\n    conditions:\n      any:\n        - confidence < 0.7",
+    suggestedFix: "Replace weak fallback wording with formal fallback routes, handoff targets and conditions."
+  },
+  "undefined-confidence-language": {
+    description: "Flags confidence language without a numeric threshold or condition.",
+    whyItMatters: "Confidence references need formal thresholds to support deterministic tests and graph evaluation.",
+    badExample: "constraints:\n  escalation:\n    - Escalate when uncertain or if low confidence.",
+    goodExample: "conditions:\n  any:\n    - confidence < 0.7\n    - verified == false",
+    suggestedFix: "Replace undefined confidence language with numeric confidence conditions."
+  }
 };
 
+
+export const builtinPolicyPacks: Record<PolicyPackName, PolicyPack> = {
+  "public-sector-safe": {
+    name: "public-sector-safe",
+    description: "Baseline safety, privacy and escalation expectations for public sector casework.",
+    requiredConstraints: ["statutory", "casework"],
+    forbiddenToolTerms: ["raw", "export_personal", "delete", "unrestricted"],
+    escalationRequirements: ["senior", "caseworker"],
+    privacyBoundaries: ["protected personal data"],
+    mandatoryFallbackTerms: ["fallback", "unclear"]
+  },
+  "financial-services": {
+    name: "financial-services",
+    description: "Baseline controls for financial services workflows.",
+    requiredConstraints: ["audit", "fraud", "regulated"],
+    forbiddenToolTerms: ["transfer_funds", "approve_credit", "delete_transaction"],
+    escalationRequirements: ["compliance", "review"],
+    privacyBoundaries: ["financial data", "customer data"],
+    mandatoryFallbackTerms: ["fallback", "unclear"]
+  },
+  healthcare: {
+    name: "healthcare",
+    description: "Baseline controls for healthcare and patient-support workflows.",
+    requiredConstraints: ["clinical", "patient", "consent"],
+    forbiddenToolTerms: ["diagnose", "prescribe", "delete_record"],
+    escalationRequirements: ["clinician", "review"],
+    privacyBoundaries: ["patient data", "clinical"],
+    mandatoryFallbackTerms: ["fallback", "unclear"]
+  },
+  "internal-enterprise": {
+    name: "internal-enterprise",
+    description: "Baseline controls for internal enterprise assistants.",
+    requiredConstraints: ["access", "confidential", "policy"],
+    forbiddenToolTerms: ["grant_admin", "delete_user", "export_confidential"],
+    escalationRequirements: ["owner", "review"],
+    privacyBoundaries: ["confidential", "employee"],
+    mandatoryFallbackTerms: ["fallback", "unclear"]
+  }
+};
+
+
+const semanticRuleDefinitions: Array<{
+  ruleId: LintRuleId;
+  severity: LintIssueSeverity;
+  path: string;
+  patterns: RegExp[];
+}> = [
+  { ruleId: "subjective-qualifier", severity: "warning", path: "instructions", patterns: [/\bappropriately\b/i, /\bcarefully\b/i, /\breasonably\b/i, /\bif needed\b/i, /\bwhere possible\b/i, /\busually\b/i, /\bgenerally\b/i] },
+  { ruleId: "undefined-escalation-threshold", severity: "error", path: "constraints.escalation", patterns: [/\bescalate if difficult\b/i, /\bhand off when needed\b/i, /\bhandoff when needed\b/i] },
+  { ruleId: "conflicting-intent-strength", severity: "warning", path: "instructions", patterns: [/\balways escalate\b[\s\S]*\battempt self-resolution first\b/i, /\battempt self-resolution first\b[\s\S]*\balways escalate\b/i] },
+  { ruleId: "weak-fallback-wording", severity: "warning", path: "routes", patterns: [/\btry your best\b/i, /\buse judgement\b/i, /\buse judgment\b/i] },
+  { ruleId: "undefined-confidence-language", severity: "warning", path: "constraints.escalation", patterns: [/\bwhen uncertain\b/i, /\bif low confidence\b/i, /\blow confidence\b(?!\s*[<>=])/i] }
+];
+
+const semanticAmbiguityRules: LintRule[] = semanticRuleDefinitions.map((definition) => ({
+  ruleId: definition.ruleId,
+  severity: definition.severity,
+  docs: lintRuleDocumentation[definition.ruleId],
+  run: ({ spec }) => {
+    const text = semanticText(spec);
+    const matched = definition.patterns.find((pattern) => pattern.test(text));
+    return matched
+      ? [issue({
+          ruleId: definition.ruleId,
+          severity: definition.severity,
+          path: definition.path,
+          message: `${lintRuleDocumentation[definition.ruleId].description} Matched ambiguous phrasing: ${matched.source.replace(/\b/g, "")}.`,
+          suggestion: lintRuleDocumentation[definition.ruleId].suggestedFix,
+          confidence: 0.87
+        })]
+      : [];
+  }
+}));
+
 export const lintRules: LintRule[] = [
+  ...semanticAmbiguityRules,
   {
     ruleId: "missing-primary-goal",
     severity: "error",
@@ -455,13 +596,94 @@ export const lintRules: LintRule[] = [
   }
 ];
 
-export function lintAgentSpec(spec: AgentSpecDocument, rules: LintRule[] = lintRules): LintResult {
+export function lintAgentSpec(spec: AgentSpecDocument, optionsOrRules: LintRule[] | LintOptions = lintRules): LintResult {
   const context = createContext(spec);
-  const issues = rules.flatMap((rule) => rule.run(context));
+  const rules = Array.isArray(optionsOrRules) ? optionsOrRules : optionsOrRules.rules ?? lintRules;
+  const policyPacks = Array.isArray(optionsOrRules) ? [] : optionsOrRules.policyPacks ?? [];
+  const issues = [
+    ...rules.flatMap((rule) => rule.run(context)),
+    ...policyPacks.flatMap((packName) => lintPolicyPack(spec, builtinPolicyPacks[packName]))
+  ];
 
   return {
     issues: issues.sort(compareIssues)
   };
+}
+
+
+
+function semanticText(spec: AgentSpecDocument): string {
+  return [
+    spec.instructions.primary_goal,
+    ...spec.instructions.secondary_goals,
+    ...spec.instructions.do,
+    ...spec.instructions.do_not,
+    ...spec.constraints.safety,
+    ...spec.constraints.privacy,
+    ...spec.constraints.compliance,
+    ...spec.constraints.escalation,
+    ...spec.constraints.data_access,
+    ...spec.routes.map((route) => `${route.name} ${route.description} ${route.triggers.join(" ")}`),
+    ...spec.handoffs.map((handoff) => `${handoff.name} ${handoff.condition}`)
+  ].join("\n");
+}
+
+function lintPolicyPack(spec: AgentSpecDocument, pack: PolicyPack): LintIssue[] {
+  if (!pack) return [];
+  const issues: LintIssue[] = [];
+  const allConstraintText = normalizePolicyText([
+    ...spec.constraints.safety,
+    ...spec.constraints.privacy,
+    ...spec.constraints.compliance,
+    ...spec.constraints.escalation,
+    ...spec.constraints.data_access
+  ].join(" "));
+  const privacyText = normalizePolicyText(spec.constraints.privacy.join(" "));
+  const escalationText = normalizePolicyText(spec.constraints.escalation.join(" "));
+  const routeText = normalizePolicyText(spec.routes.map((route) => `${route.name} ${route.description} ${route.triggers.join(" ")} ${route.target}`).join(" "));
+
+  for (const required of pack.requiredConstraints) {
+    if (!allConstraintText.includes(normalizePolicyText(required))) {
+      issues.push(policyIssue("policy-required-constraint", "error", "constraints", pack, `Required policy constraint is missing: ${required}.`, `Add a ${required} constraint for the ${pack.name} policy pack.`));
+    }
+  }
+
+  for (const boundary of pack.privacyBoundaries) {
+    if (!privacyText.includes(normalizePolicyText(boundary))) {
+      issues.push(policyIssue("policy-privacy-boundary", "error", "constraints.privacy", pack, `Required privacy boundary is missing: ${boundary}.`, `Add an explicit privacy boundary covering ${boundary}.`));
+    }
+  }
+
+  for (const requirement of pack.escalationRequirements) {
+    if (!escalationText.includes(normalizePolicyText(requirement))) {
+      issues.push(policyIssue("policy-escalation-required", "error", "constraints.escalation", pack, `Required escalation requirement is missing: ${requirement}.`, `Add escalation language covering ${requirement}.`));
+    }
+  }
+
+  for (const term of pack.mandatoryFallbackTerms) {
+    if (!routeText.includes(normalizePolicyText(term))) {
+      issues.push(policyIssue("policy-mandatory-fallback", "error", "routes", pack, `Mandatory fallback routing term is missing: ${term}.`, `Add a fallback route that covers ${term} situations.`));
+    }
+  }
+
+  for (const [index, tool] of spec.tools.entries()) {
+    const toolText = normalizePolicyText(`${tool.name} ${tool.description} ${tool.allowed_operations.join(" ")}`);
+    for (const forbidden of pack.forbiddenToolTerms) {
+      if (toolText.includes(normalizePolicyText(forbidden))) {
+        issues.push(policyIssue("policy-forbidden-tool", "error", `tools.${index}`, pack, `Tool "${tool.name}" appears to use forbidden policy capability: ${forbidden}.`, `Remove the capability or document an approved exception outside the Agent Lint spec.`));
+      }
+    }
+  }
+
+  return issues;
+}
+
+function policyIssue(ruleId: PolicyRuleId, severity: LintIssueSeverity, path: string, pack: PolicyPack, message: string, suggestion: string): LintIssue {
+  return { ruleId, severity, path, message: `[${pack.name}] ${message}`, suggestion, confidence: 0.9 };
+}
+
+function normalizePolicyText(value: string): string {
+  return value.toLowerCase().replace(/[_-]+/g, " ").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function createContext(spec: AgentSpecDocument): LintContext {
