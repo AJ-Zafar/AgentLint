@@ -139,3 +139,11 @@ pnpm agentlint coverage ./agent.agentspec.yaml --json
 ```
 
 Reports route, handoff, tool, constraint, fallback and test scenario coverage. The report includes percentage coverage, uncovered branches and recommended test scenarios.
+
+## Governance evidence report
+
+```bash
+pnpm agentlint report ./agent.agentspec.yaml --format markdown
+```
+
+Generates a markdown evidence report for architecture review boards and enterprise governance sign-off. The report includes agent summary, lint findings, behavioural coverage, scenario replay results, risk analysis, escalation assurance, tool access controls and policy compliance checks.

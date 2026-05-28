@@ -6,6 +6,7 @@ import { diffAgentSpecs, simulateAgentSpecDiff, type BehavioralDiffResult, type 
 import { compileAgentSpecGraph, type GraphCompilationResult } from "@agentspec/grammar";
 import { renderReplayMermaid, replayScenario, type ReplayResult } from "@agentspec/replay";
 import { analyseBehaviouralCoverage, type BehaviouralCoverageReport } from "@agentspec/coverage";
+import { generateGovernanceMarkdownReport } from "@agentspec/report";
 import { compileInstructionsToAgentSpec } from "@agentspec/compiler";
 import { readFile, writeFile } from "node:fs/promises";
 import { convertAgentSpecToCopilotStudioPlan } from "@agentspec/copilot-studio";
@@ -143,6 +144,23 @@ export function createCli(state: CliState, programName = "agentspec"): Command {
       if (result.summary.failed > 0) {
         state.exitCode = 1;
       }
+    });
+
+  program
+    .command("report")
+    .argument("<file>", "Agent Lint YAML file")
+    .option("--format <format>", "Report format", "markdown")
+    .option("--policy <pack...>", "Apply policy packs in the report")
+    .description("Generate governance evidence report for architecture review.")
+    .action(async (file: string, options: { format: string; policy?: string[] }) => {
+      const parsed = await parseForCommand(file, state, "report", false);
+      if (!parsed) return;
+      if (options.format !== "markdown") {
+        state.exitCode = 1;
+        state.stderr.push(`Unsupported report format: ${options.format}\n`);
+        return;
+      }
+      state.stdout.push(generateGovernanceMarkdownReport(parsed.document, { policyPacks: options.policy ?? [] }));
     });
 
   program

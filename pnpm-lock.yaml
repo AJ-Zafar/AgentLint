@@ -53,6 +53,9 @@ importers:
       '@agentspec/replay':
         specifier: workspace:*
         version: link:../replay
+      '@agentspec/report':
+        specifier: workspace:*
+        version: link:../report
       '@agentspec/spec':
         specifier: workspace:*
         version: link:../spec
@@ -134,6 +137,21 @@ importers:
       '@agentspec/grammar':
         specifier: workspace:*
         version: link:../grammar
+      '@agentspec/spec':
+        specifier: workspace:*
+        version: link:../spec
+
+  packages/report:
+    dependencies:
+      '@agentspec/coverage':
+        specifier: workspace:*
+        version: link:../coverage
+      '@agentspec/linter':
+        specifier: workspace:*
+        version: link:../linter
+      '@agentspec/replay':
+        specifier: workspace:*
+        version: link:../replay
       '@agentspec/spec':
         specifier: workspace:*
         version: link:../spec

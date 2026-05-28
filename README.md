@@ -429,3 +429,11 @@ Reports route, handoff, tool, constraint, fallback and test scenario coverage. T
 ## Copilot drift scoring
 
 `agentlint copilot-drift` calculates route drift, tool drift, handoff drift, governance drift and overall behavioural drift. Reports classify drift as `aligned`, `minor drift`, `significant drift` or `critical drift`, and include actionable remediation suggestions for missing topics, unexpected topics, missing actions, undocumented high-risk actions and fallback or handoff gaps.
+
+## Governance evidence report
+
+```bash
+pnpm agentlint report ./agent.agentspec.yaml --format markdown
+```
+
+Generates a markdown evidence report for architecture review boards and enterprise governance sign-off. The report includes agent summary, lint findings, behavioural coverage, scenario replay results, risk analysis, escalation assurance, tool access controls and policy compliance checks.

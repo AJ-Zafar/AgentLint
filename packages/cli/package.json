@@ -31,7 +31,8 @@
     "commander": "^14.0.3",
     "yaml": "^2.9.0",
     "@agentspec/replay": "workspace:*",
-    "@agentspec/coverage": "workspace:*"
+    "@agentspec/coverage": "workspace:*",
+    "@agentspec/report": "workspace:*"
   },
   "description": "Command-line interface for validating, linting, testing and diffing AgentSpec files.",
   "license": "MIT",

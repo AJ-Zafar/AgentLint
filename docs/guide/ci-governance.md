@@ -96,3 +96,11 @@ Enterprise teams may want to extend the basic workflow with:
 - audit evidence linking AgentSpec changes to approvals
 
 The current open-source workflow is deliberately simple. It is intended to be easy to copy, review and adapt.
+
+## Governance evidence report
+
+```bash
+pnpm agentlint report ./agent.agentspec.yaml --format markdown
+```
+
+Generates a markdown evidence report for architecture review boards and enterprise governance sign-off. The report includes agent summary, lint findings, behavioural coverage, scenario replay results, risk analysis, escalation assurance, tool access controls and policy compliance checks.

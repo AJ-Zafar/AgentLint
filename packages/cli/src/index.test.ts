@@ -295,6 +295,21 @@ describe("agentspec CLI", () => {
 
 
 
+
+  it("generates a governance evidence report", async () => {
+    const result = await runCli([
+      "report",
+      "packages/replay/fixtures/angry-refund-user.agentspec.yaml",
+      "--format",
+      "markdown"
+    ], "agentlint");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("# Governance Evidence Report");
+    expect(result.stdout).toContain("## 1. Agent summary");
+    expect(result.stdout).toContain("## 8. Policy compliance checks");
+  });
+
   it("replays a named scenario through the behaviour graph", async () => {
     const filePath = await writeFixture(
       "replay.agentspec.yaml",
