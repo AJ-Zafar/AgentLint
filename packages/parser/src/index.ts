@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import { parse } from "yaml";
 import { validateAgentSpec, type AgentSpecDocument, type AgentSpecValidationIssue } from "@agentspec/spec";
 
@@ -36,6 +35,7 @@ export function parseAgentSpecYaml(contents: string, options: { source?: string 
 }
 
 export async function parseAgentSpecFile(filePath: string): Promise<ParsedAgentSpec> {
+  const { readFile } = await import("node:fs/promises");
   const contents = await readFile(filePath, "utf8");
   return parseAgentSpecYaml(contents, { source: filePath });
 }
