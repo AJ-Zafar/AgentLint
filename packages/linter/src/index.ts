@@ -29,8 +29,18 @@ export type LintResult = {
   issues: LintIssue[];
 };
 
+export type LintRuleDocumentation = {
+  description: string;
+  whyItMatters: string;
+  badExample: string;
+  goodExample: string;
+  suggestedFix: string;
+};
+
 export type LintRule = {
   ruleId: LintRuleId;
+  severity: LintIssueSeverity;
+  docs: LintRuleDocumentation;
   run: (context: LintContext) => LintIssue[];
 };
 
@@ -57,9 +67,98 @@ const vagueInstructionPatterns = [
 
 const fallbackPatterns = [/\bfallback\b/i, /\bdefault\b/i, /\bunclear\b/i, /\bunknown\b/i, /\bpolicy gap\b/i];
 
+export const lintRuleDocumentation: Record<LintRuleId, LintRuleDocumentation> = {
+  "missing-primary-goal": {
+    description: "Requires instructions.primary_goal to contain a clear objective.",
+    whyItMatters: "Without a primary goal, reviewers and test authors cannot tell what behaviour the agent is optimised for.",
+    badExample: "instructions:\n  primary_goal: \"\"",
+    goodExample: "instructions:\n  primary_goal: Route billing questions to approved support paths.",
+    suggestedFix: "Add one concise, testable primary goal that describes the agent's main responsibility."
+  },
+  "conflicting-do-and-do-not": {
+    description: "Detects instructions that appear in both do and do_not lists.",
+    whyItMatters: "Conflicting instructions make implementation and review ambiguous and can lead to unpredictable runtime behaviour.",
+    badExample: "do:\n  - Approve refunds\ndo_not:\n  - Do not approve refunds",
+    goodExample: "do:\n  - Explain the refund policy\ndo_not:\n  - Do not approve refunds without authorisation",
+    suggestedFix: "Remove the duplicate meaning from one list, or rewrite the instructions so the boundary is explicit."
+  },
+  "route-target-not-defined": {
+    description: "Checks that every route target references an existing tool or handoff.",
+    whyItMatters: "Undefined route targets break routing plans and make deterministic tests misleading.",
+    badExample: "routes:\n  - name: billing\n    target: tool:missing_tool",
+    goodExample: "tools:\n  - name: account_lookup\nroutes:\n  - name: billing\n    target: tool:account_lookup",
+    suggestedFix: "Define the referenced tool or handoff, or update the route target to an existing name."
+  },
+  "handoff-without-condition": {
+    description: "Requires each handoff to describe the condition that triggers it.",
+    whyItMatters: "A handoff without a condition cannot be reviewed as a clear escalation rule.",
+    badExample: "handoffs:\n  - name: human_support\n    condition: \"\"",
+    goodExample: "handoffs:\n  - name: human_support\n    condition: Account ownership is unclear or policy approval is required.",
+    suggestedFix: "Add a specific condition that explains when the handoff should be used."
+  },
+  "missing-fallback-route": {
+    description: "Looks for an explicit fallback route that targets a handoff.",
+    whyItMatters: "Agents need a predictable path for unclear, unmatched or policy-gap situations.",
+    badExample: "routes:\n  - name: billing_support\n    target: tool:account_lookup",
+    goodExample: "routes:\n  - name: fallback_human_support\n    triggers: [fallback, unclear]\n    target: handoff:human_support",
+    suggestedFix: "Add a low-priority fallback route with triggers such as fallback or unclear and target a handoff."
+  },
+  "tool-without-risk-level": {
+    description: "Requires tools to declare risk_level metadata.",
+    whyItMatters: "Risk metadata helps reviewers decide which tools need stronger controls and approval.",
+    badExample: "tools:\n  - name: account_lookup\n    requires_auth: true",
+    goodExample: "tools:\n  - name: account_lookup\n    requires_auth: true\n    risk_level: medium",
+    suggestedFix: "Set risk_level to low, medium, high or critical."
+  },
+  "high-risk-tool-without-auth": {
+    description: "Flags high or critical risk tools that do not require authentication.",
+    whyItMatters: "High-risk actions without authentication assumptions can create serious security and governance gaps.",
+    badExample: "tools:\n  - name: refund_approval\n    risk_level: high\n    requires_auth: false",
+    goodExample: "tools:\n  - name: refund_approval\n    risk_level: high\n    requires_auth: true",
+    suggestedFix: "Set requires_auth to true, or lower the risk level only if the tool is genuinely low impact."
+  },
+  "vague-instruction-language": {
+    description: "Flags subjective instruction language such as be careful or use best judgement.",
+    whyItMatters: "Vague instructions are hard to test, review and enforce consistently.",
+    badExample: "secondary_goals:\n  - Use best judgement and be helpful.",
+    goodExample: "secondary_goals:\n  - Escalate requests when account ownership is unclear.",
+    suggestedFix: "Replace subjective language with observable, testable behaviour."
+  },
+  "duplicate-route-trigger": {
+    description: "Detects route triggers reused across multiple routes.",
+    whyItMatters: "Duplicate triggers can make deterministic route selection ambiguous and hide routing regressions.",
+    badExample: "routes:\n  - name: billing\n    triggers: [refund]\n  - name: disputes\n    triggers: [refund]",
+    goodExample: "routes:\n  - name: billing\n    triggers: [invoice]\n  - name: disputes\n    triggers: [chargeback]",
+    suggestedFix: "Make triggers distinct or consolidate overlapping routes."
+  },
+  "test-without-assertions": {
+    description: "Requires each test scenario to include at least one assertion.",
+    whyItMatters: "Tests without assertions document inputs but do not define expected behaviour.",
+    badExample: "tests:\n  - name: refund route\n    assertions: []",
+    goodExample: "tests:\n  - name: refund route\n    assertions:\n      - route is billing_support",
+    suggestedFix: "Add assertions that describe expected route, handoff or tool-call behaviour."
+  },
+  "forbidden-operation-not-enforced": {
+    description: "Checks forbidden tool operations are reflected in instructions or constraints.",
+    whyItMatters: "A forbidden operation listed only on a tool can be missed by reviewers reading behavioural instructions.",
+    badExample: "forbidden_operations:\n  - read_full_payment_card",
+    goodExample: "do_not:\n  - Do not read full payment card data\nforbidden_operations:\n  - read_full_payment_card",
+    suggestedFix: "Add a matching do_not instruction or safety, privacy or data_access constraint."
+  },
+  "no-escalation-path": {
+    description: "Requires a complete escalation path with constraints, handoffs and a route to a handoff.",
+    whyItMatters: "Without an escalation path, unclear or risky cases may have no safe deterministic route.",
+    badExample: "constraints:\n  escalation: []\nhandoffs: []",
+    goodExample: "constraints:\n  escalation:\n    - Fallback to human_support when unclear.\nroutes:\n  - target: handoff:human_support",
+    suggestedFix: "Define escalation constraints, at least one handoff and a route that targets handoff:<name>."
+  }
+};
+
 export const lintRules: LintRule[] = [
   {
     ruleId: "missing-primary-goal",
+    severity: "error",
+    docs: lintRuleDocumentation["missing-primary-goal"],
     run: ({ spec }) =>
       hasText(spec.instructions.primary_goal)
         ? []
@@ -76,6 +175,8 @@ export const lintRules: LintRule[] = [
   },
   {
     ruleId: "conflicting-do-and-do-not",
+    severity: "error",
+    docs: lintRuleDocumentation["conflicting-do-and-do-not"],
     run: ({ spec }) => {
       const forbidden = new Map(spec.instructions.do_not.map((instruction) => [normalizeInstruction(instruction), instruction]));
       const conflicts = spec.instructions.do
@@ -96,6 +197,8 @@ export const lintRules: LintRule[] = [
   },
   {
     ruleId: "route-target-not-defined",
+    severity: "error",
+    docs: lintRuleDocumentation["route-target-not-defined"],
     run: ({ routeTargets, toolNames, handoffNames }) =>
       routeTargets.flatMap(({ routeIndex, routeName, target, parsed }) => {
         if (!parsed) {
@@ -128,6 +231,8 @@ export const lintRules: LintRule[] = [
   },
   {
     ruleId: "handoff-without-condition",
+    severity: "error",
+    docs: lintRuleDocumentation["handoff-without-condition"],
     run: ({ spec }) =>
       spec.handoffs.flatMap((handoff, index) =>
         hasText(handoff.condition)
@@ -146,6 +251,8 @@ export const lintRules: LintRule[] = [
   },
   {
     ruleId: "missing-fallback-route",
+    severity: "warning",
+    docs: lintRuleDocumentation["missing-fallback-route"],
     run: ({ spec, routeTargets }) => {
       const hasFallbackRoute = spec.routes.some((route) => {
         const routeText = `${route.name} ${route.description} ${route.triggers.join(" ")}`;
@@ -169,6 +276,8 @@ export const lintRules: LintRule[] = [
   },
   {
     ruleId: "tool-without-risk-level",
+    severity: "warning",
+    docs: lintRuleDocumentation["tool-without-risk-level"],
     run: ({ spec }) =>
       spec.tools.flatMap((tool, index) =>
         hasText((tool as Partial<AgentSpecTool>).risk_level)
@@ -187,6 +296,8 @@ export const lintRules: LintRule[] = [
   },
   {
     ruleId: "high-risk-tool-without-auth",
+    severity: "error",
+    docs: lintRuleDocumentation["high-risk-tool-without-auth"],
     run: ({ spec }) =>
       spec.tools.flatMap((tool, index) =>
         (tool.risk_level === "high" || tool.risk_level === "critical") && !tool.requires_auth
@@ -205,6 +316,8 @@ export const lintRules: LintRule[] = [
   },
   {
     ruleId: "vague-instruction-language",
+    severity: "warning",
+    docs: lintRuleDocumentation["vague-instruction-language"],
     run: ({ spec }) => {
       const candidates = [
         { path: "instructions.primary_goal", value: spec.instructions.primary_goal },
@@ -231,6 +344,8 @@ export const lintRules: LintRule[] = [
   },
   {
     ruleId: "duplicate-route-trigger",
+    severity: "warning",
+    docs: lintRuleDocumentation["duplicate-route-trigger"],
     run: ({ spec }) => {
       const seen = new Map<string, { routeName: string; path: string }>();
       const issues: LintIssue[] = [];
@@ -263,6 +378,8 @@ export const lintRules: LintRule[] = [
   },
   {
     ruleId: "test-without-assertions",
+    severity: "warning",
+    docs: lintRuleDocumentation["test-without-assertions"],
     run: ({ spec }) =>
       (spec.tests ?? []).flatMap((test, index) =>
         test.assertions.length > 0
@@ -281,6 +398,8 @@ export const lintRules: LintRule[] = [
   },
   {
     ruleId: "forbidden-operation-not-enforced",
+    severity: "warning",
+    docs: lintRuleDocumentation["forbidden-operation-not-enforced"],
     run: ({ spec }) => {
       const enforcementText = normalizeInstruction(
         [
@@ -313,6 +432,8 @@ export const lintRules: LintRule[] = [
   },
   {
     ruleId: "no-escalation-path",
+    severity: "error",
+    docs: lintRuleDocumentation["no-escalation-path"],
     run: ({ spec, routeTargets }) => {
       const hasEscalationConstraint = spec.constraints.escalation.some(hasText);
       const hasHandoff = spec.handoffs.length > 0;

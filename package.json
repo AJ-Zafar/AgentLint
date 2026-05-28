@@ -15,7 +15,8 @@
     "typecheck": "tsc -b packages/spec packages/parser packages/linter packages/test-runner packages/diff packages/copilot-studio packages/vscode-extension packages/cli --pretty false",
     "lint:examples": "pnpm agentspec lint examples/customer-support.agentspec.yaml && pnpm agentspec lint examples/copilot-studio-agent.agentspec.yaml && pnpm agentspec lint examples/public-sector-casework.agentspec.yaml",
     "validate:examples": "pnpm agentspec validate examples/customer-support.agentspec.yaml && pnpm agentspec validate examples/copilot-studio-agent.agentspec.yaml && pnpm agentspec validate examples/public-sector-casework.agentspec.yaml",
-    "lint": "pnpm build && pnpm lint:examples"
+    "lint": "pnpm build && pnpm lint:examples",
+    "docs:linter-rules": "pnpm build && node scripts/generate-linter-rule-docs.mjs"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
