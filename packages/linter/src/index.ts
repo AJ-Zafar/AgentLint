@@ -12,7 +12,12 @@ export type LintRuleId =
   | "duplicate-route-trigger"
   | "test-without-assertions"
   | "forbidden-operation-not-enforced"
-  | "no-escalation-path";
+  | "no-escalation-path"
+  | "subjective-qualifier"
+  | "undefined-escalation-threshold"
+  | "conflicting-intent-strength"
+  | "weak-fallback-wording"
+  | "undefined-confidence-language";
 
 export type PolicyRuleId =
   | "policy-required-constraint"
@@ -177,6 +182,42 @@ export const lintRuleDocumentation: Record<LintRuleId, LintRuleDocumentation> = 
     goodExample: "constraints:\n  escalation:\n    - Fallback to human_support when unclear.\nroutes:\n  - target: handoff:human_support",
     suggestedFix: "Define escalation constraints, at least one handoff and a route that targets handoff:<name>."
   }
+  ,
+  "subjective-qualifier": {
+    description: "Flags subjective qualifiers such as appropriately, carefully, reasonably, usually and generally.",
+    whyItMatters: "Subjective qualifiers are not formal enough for repeatable tests or behaviour graph conditions.",
+    badExample: "instructions:\n  do:\n    - Handle requests appropriately and carefully.",
+    goodExample: "routes:\n  - conditions:\n      all:\n        - risk == low\n        - authenticated == true",
+    suggestedFix: "Replace subjective qualifiers with formal conditions, thresholds or explicit route constraints."
+  },
+  "undefined-escalation-threshold": {
+    description: "Flags escalation language that lacks a concrete threshold.",
+    whyItMatters: "Escalation rules need formal conditions so reviewers know when handoff behaviour should trigger.",
+    badExample: "constraints:\n  escalation:\n    - Escalate if difficult.",
+    goodExample: "constraints:\n  escalation:\n    - Escalate when amount >= 50 or authenticated == false.",
+    suggestedFix: "Replace vague escalation wording with formal conditions in route conditions or constraint evaluation trees."
+  },
+  "conflicting-intent-strength": {
+    description: "Flags instructions that combine absolute escalation with self-resolution language.",
+    whyItMatters: "Conflicting intent strength makes priority unclear and should be represented as formal precedence or route conditions.",
+    badExample: "instructions:\n  do:\n    - Always escalate but attempt self-resolution first.",
+    goodExample: "precedence:\n  routes:\n    - self_resolution\n    - escalation_review",
+    suggestedFix: "Express the intended order with precedence.routes and explicit route conditions."
+  },
+  "weak-fallback-wording": {
+    description: "Flags fallback instructions such as try your best or use judgement.",
+    whyItMatters: "Weak fallback wording is not formal enough to produce auditable fallback behaviour.",
+    badExample: "instructions:\n  do:\n    - Try your best and use judgement.",
+    goodExample: "routes:\n  - name: fallback_human_support\n    target: handoff:human_support\n    conditions:\n      any:\n        - confidence < 0.7",
+    suggestedFix: "Replace weak fallback wording with formal fallback routes, handoff targets and conditions."
+  },
+  "undefined-confidence-language": {
+    description: "Flags confidence language without a numeric threshold or condition.",
+    whyItMatters: "Confidence references need formal thresholds to support deterministic tests and graph evaluation.",
+    badExample: "constraints:\n  escalation:\n    - Escalate when uncertain or if low confidence.",
+    goodExample: "conditions:\n  any:\n    - confidence < 0.7\n    - verified == false",
+    suggestedFix: "Replace undefined confidence language with numeric confidence conditions."
+  }
 };
 
 
@@ -219,7 +260,42 @@ export const builtinPolicyPacks: Record<PolicyPackName, PolicyPack> = {
   }
 };
 
+
+const semanticRuleDefinitions: Array<{
+  ruleId: LintRuleId;
+  severity: LintIssueSeverity;
+  path: string;
+  patterns: RegExp[];
+}> = [
+  { ruleId: "subjective-qualifier", severity: "warning", path: "instructions", patterns: [/\bappropriately\b/i, /\bcarefully\b/i, /\breasonably\b/i, /\bif needed\b/i, /\bwhere possible\b/i, /\busually\b/i, /\bgenerally\b/i] },
+  { ruleId: "undefined-escalation-threshold", severity: "error", path: "constraints.escalation", patterns: [/\bescalate if difficult\b/i, /\bhand off when needed\b/i, /\bhandoff when needed\b/i] },
+  { ruleId: "conflicting-intent-strength", severity: "warning", path: "instructions", patterns: [/\balways escalate\b[\s\S]*\battempt self-resolution first\b/i, /\battempt self-resolution first\b[\s\S]*\balways escalate\b/i] },
+  { ruleId: "weak-fallback-wording", severity: "warning", path: "routes", patterns: [/\btry your best\b/i, /\buse judgement\b/i, /\buse judgment\b/i] },
+  { ruleId: "undefined-confidence-language", severity: "warning", path: "constraints.escalation", patterns: [/\bwhen uncertain\b/i, /\bif low confidence\b/i, /\blow confidence\b(?!\s*[<>=])/i] }
+];
+
+const semanticAmbiguityRules: LintRule[] = semanticRuleDefinitions.map((definition) => ({
+  ruleId: definition.ruleId,
+  severity: definition.severity,
+  docs: lintRuleDocumentation[definition.ruleId],
+  run: ({ spec }) => {
+    const text = semanticText(spec);
+    const matched = definition.patterns.find((pattern) => pattern.test(text));
+    return matched
+      ? [issue({
+          ruleId: definition.ruleId,
+          severity: definition.severity,
+          path: definition.path,
+          message: `${lintRuleDocumentation[definition.ruleId].description} Matched ambiguous phrasing: ${matched.source.replace(/\b/g, "")}.`,
+          suggestion: lintRuleDocumentation[definition.ruleId].suggestedFix,
+          confidence: 0.87
+        })]
+      : [];
+  }
+}));
+
 export const lintRules: LintRule[] = [
+  ...semanticAmbiguityRules,
   {
     ruleId: "missing-primary-goal",
     severity: "error",
@@ -534,6 +610,23 @@ export function lintAgentSpec(spec: AgentSpecDocument, optionsOrRules: LintRule[
   };
 }
 
+
+
+function semanticText(spec: AgentSpecDocument): string {
+  return [
+    spec.instructions.primary_goal,
+    ...spec.instructions.secondary_goals,
+    ...spec.instructions.do,
+    ...spec.instructions.do_not,
+    ...spec.constraints.safety,
+    ...spec.constraints.privacy,
+    ...spec.constraints.compliance,
+    ...spec.constraints.escalation,
+    ...spec.constraints.data_access,
+    ...spec.routes.map((route) => `${route.name} ${route.description} ${route.triggers.join(" ")}`),
+    ...spec.handoffs.map((handoff) => `${handoff.name} ${handoff.condition}`)
+  ].join("\n");
+}
 
 function lintPolicyPack(spec: AgentSpecDocument, pack: PolicyPack): LintIssue[] {
   if (!pack) return [];

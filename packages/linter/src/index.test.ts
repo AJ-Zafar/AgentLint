@@ -248,6 +248,46 @@ describe("AgentSpec rule-based linter", () => {
     expect(issues.filter((issue) => String(issue.ruleId).startsWith("policy-"))).toEqual([]);
   });
 
+
+  it("detects semantic ambiguity rule categories", () => {
+    const spec: AgentSpecDocument = {
+      ...baseSpec,
+      instructions: {
+        ...baseSpec.instructions,
+        primary_goal: "Usually resolve requests reasonably and carefully.",
+        secondary_goals: ["Escalate if difficult.", "Always escalate but attempt self-resolution first."],
+        do: ["Try your best and use judgement.", "Hand off when needed."],
+        do_not: ["Escalate if low confidence."]
+      },
+      constraints: {
+        ...baseSpec.constraints,
+        escalation: ["Escalate when uncertain."]
+      }
+    };
+
+    expect(ruleIds(spec)).toEqual(expect.arrayContaining([
+      "subjective-qualifier",
+      "undefined-escalation-threshold",
+      "conflicting-intent-strength",
+      "weak-fallback-wording",
+      "undefined-confidence-language"
+    ] as never[]));
+  });
+
+  it("has explanation metadata for semantic ambiguity rules", () => {
+    for (const ruleId of [
+      "subjective-qualifier",
+      "undefined-escalation-threshold",
+      "conflicting-intent-strength",
+      "weak-fallback-wording",
+      "undefined-confidence-language"
+    ] as const) {
+      const rule = lintRules.find((candidate) => candidate.ruleId === ruleId);
+      expect(rule?.docs.whyItMatters).toContain("formal");
+      expect(rule?.docs.suggestedFix).toContain("conditions");
+    }
+  });
+
   it("has documentation metadata for every rule", () => {
     const requiredFields = ["description", "whyItMatters", "badExample", "goodExample", "suggestedFix"] as const;
 

@@ -1,6 +1,6 @@
 import { Command, CommanderError } from "commander";
 import { AgentSpecParseError, parseAgentSpecFile, type ParsedAgentSpec } from "@agentspec/parser";
-import { lintAgentSpec } from "@agentspec/linter";
+import { lintAgentSpec, lintRules } from "@agentspec/linter";
 import { runAgentSpecTests, type TestRunResult } from "@agentspec/test-runner";
 import { diffAgentSpecs, simulateAgentSpecDiff, type BehavioralDiffResult, type SimulatedDiffReport } from "@agentspec/diff";
 import { compileAgentSpecGraph, type GraphCompilationResult } from "@agentspec/grammar";
@@ -33,6 +33,20 @@ export function createCli(state: CliState, programName = "agentspec"): Command {
     .configureOutput({
       writeOut: (value) => state.stdout.push(value),
       writeErr: (value) => state.stderr.push(value)
+    });
+
+  program
+    .command("explain-lint")
+    .argument("<ruleId>", "Agent Lint lint rule id")
+    .description("Explain a lint rule with examples and remediation guidance.")
+    .action((ruleId: string) => {
+      const rule = lintRules.find((candidate) => candidate.ruleId === ruleId);
+      if (!rule) {
+        state.exitCode = 1;
+        state.stderr.push(`Unknown lint rule: ${ruleId}\n`);
+        return;
+      }
+      state.stdout.push(formatLintRuleExplanation(rule));
     });
 
   program
@@ -244,6 +258,37 @@ export function createCli(state: CliState, programName = "agentspec"): Command {
     });
 
   return program;
+}
+
+function formatLintRuleExplanation(rule: { ruleId: string; severity: string; docs: { description: string; whyItMatters: string; badExample: string; goodExample: string; suggestedFix: string } }): string {
+  return [
+    `# ${rule.ruleId}`,
+    "",
+    `Severity: ${rule.severity}`,
+    "",
+    rule.docs.description,
+    "",
+    "## Why it matters",
+    "",
+    rule.docs.whyItMatters,
+    "",
+    "## Bad example",
+    "",
+    "```yaml",
+    rule.docs.badExample,
+    "```",
+    "",
+    "## Good example",
+    "",
+    "```yaml",
+    rule.docs.goodExample,
+    "```",
+    "",
+    "## Suggested fix",
+    "",
+    rule.docs.suggestedFix,
+    ""
+  ].join("\n");
 }
 
 async function parseForCommand(

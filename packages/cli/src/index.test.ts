@@ -86,6 +86,17 @@ async function writeFixture(name: string, contents: string): Promise<string> {
 }
 
 describe("agentspec CLI", () => {
+
+  it("explains a lint rule", async () => {
+    const result = await runCli(["explain-lint", "subjective-qualifier"], "agentlint");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("subjective-qualifier");
+    expect(result.stdout).toContain("Why it matters");
+    expect(result.stdout).toContain("Bad example");
+    expect(result.stdout).toContain("Suggested fix");
+  });
+
   it("shows help with a zero exit code", async () => {
     const result = await runCli(["--help"]);
 
