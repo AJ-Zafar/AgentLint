@@ -558,3 +558,16 @@ When adding rules, prefer:
 - stable paths into the YAML structure
 - actionable suggestions
 - tests for positive and negative cases
+
+## Autofix support
+
+Agent Lint can apply deterministic scaffolding fixes:
+
+```bash
+pnpm agentlint lint ./file.agentspec.yaml --fix
+pnpm agentlint lint ./file.agentspec.yaml --fix --json
+```
+
+Autofix can add missing fallback scaffolds, add default `risk_level: medium`, retarget undefined route targets to an existing handoff, add placeholder handoff conditions, annotate weak escalation wording and normalise YAML output.
+
+Autofix deliberately does not rewrite semantic intent. When a fix needs human judgement, Agent Lint adds explicit `TODO` or `agentlint_fixme` annotations and reports manual review warnings.

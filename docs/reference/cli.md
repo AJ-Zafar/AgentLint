@@ -116,3 +116,16 @@ pnpm agentlint replay ./agent.agentspec.yaml --scenario angry-refund-user --json
 ```
 
 Runs deterministic path evaluation through the behaviour graph for a named scenario and reports the decision path, triggered constraints, selected route, tool eligibility checks, handoff reasoning and execution trace.
+
+## Autofix support
+
+Agent Lint can apply deterministic scaffolding fixes:
+
+```bash
+pnpm agentlint lint ./file.agentspec.yaml --fix
+pnpm agentlint lint ./file.agentspec.yaml --fix --json
+```
+
+Autofix can add missing fallback scaffolds, add default `risk_level: medium`, retarget undefined route targets to an existing handoff, add placeholder handoff conditions, annotate weak escalation wording and normalise YAML output.
+
+Autofix deliberately does not rewrite semantic intent. When a fix needs human judgement, Agent Lint adds explicit `TODO` or `agentlint_fixme` annotations and reports manual review warnings.

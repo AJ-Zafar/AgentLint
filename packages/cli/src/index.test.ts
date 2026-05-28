@@ -187,6 +187,44 @@ describe("agentspec CLI", () => {
     expect(parsed.issues).toEqual(expect.arrayContaining([expect.objectContaining({ ruleId: "policy-required-constraint" })]));
   });
 
+
+
+  it("applies deterministic lint autofixes and reports manual review", async () => {
+    const filePath = await writeFixture(
+      "autofix.agentspec.yaml",
+      validYaml
+        .replace("target: tool:account_lookup", "target: tool:missing_tool")
+        .replace("    risk_level: medium\n", "")
+        .replace("condition: Refund approval, unclear account ownership, or policy exception.", "condition: \"\"")
+        .replace("Fallback to human_support when policy coverage is unclear.", "Use judgement when unclear.")
+    );
+
+    const result = await runCli(["lint", "--fix", filePath], "agentlint");
+    const fixed = await import("node:fs/promises").then((fs) => fs.readFile(filePath, "utf8"));
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain("Fixes applied");
+    expect(result.stdout).toContain("Added default risk_level");
+    expect(result.stdout).toContain("Retargeted route");
+    expect(result.stdout).toContain("Manual review required");
+    expect(fixed).toContain("risk_level: medium");
+    expect(fixed).toContain("target: handoff:human_support");
+    expect(fixed).toContain("TODO: define handoff condition");
+    expect(fixed).toContain("agentlint_fixme: review escalation wording");
+  });
+
+  it("emits deterministic JSON for lint autofix", async () => {
+    const filePath = await writeFixture("autofix-json.agentspec.yaml", validYaml.replace("    risk_level: medium\n", ""));
+    const result = await runCli(["lint", "--fix", "--json", filePath], "agentlint");
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(1);
+    expect(parsed.command).toBe("lint");
+    expect(parsed.fix.applied).toEqual(expect.arrayContaining([expect.objectContaining({ code: "added-risk-level" })]));
+    expect(parsed.fix.manualReviewRequired).toEqual(expect.any(Array));
+    expect(result.stdout).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+  });
+
   it("runs deterministic declared tests without live model calls", async () => {
     const filePath = await writeFixture("test.agentspec.yaml", validYaml);
     const result = await runCli(["test", filePath]);

@@ -6,10 +6,10 @@ import { diffAgentSpecs, simulateAgentSpecDiff, type BehavioralDiffResult, type 
 import { compileAgentSpecGraph, type GraphCompilationResult } from "@agentspec/grammar";
 import { replayScenario, type ReplayResult } from "@agentspec/replay";
 import { compileInstructionsToAgentSpec } from "@agentspec/compiler";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { convertAgentSpecToCopilotStudioPlan } from "@agentspec/copilot-studio";
 import { auditCopilotStudioSolution, analyseCopilotStudioDrift, generateAgentSpecFromCopilotStudioSolution, type CopilotStudioAuditReport, type CopilotStudioDriftReport } from "@agentspec/copilot-studio-audit";
-import { stringify } from "yaml";
+import { parse as parseYaml, stringify } from "yaml";
 
 export type CliResult = {
   exitCode: number;
@@ -21,6 +21,7 @@ type CliState = {
   exitCode: number;
   stdout: string[];
   stderr: string[];
+  args: string[];
 };
 
 export function createCli(state: CliState, programName = "agentspec"): Command {
@@ -69,8 +70,22 @@ export function createCli(state: CliState, programName = "agentspec"): Command {
     .argument("<file>", "AgentSpec YAML file")
     .option("--json", "Emit machine-readable JSON output")
     .option("--policy <pack...>", "Apply one or more built-in policy packs")
+    .option("--fix", "Apply deterministic safe fixes where possible")
     .description("Lint an AgentSpec YAML file for instruction-engineering issues.")
-    .action(async (file: string, options: { json?: boolean; policy?: string[] }) => {
+    .action(async (file: string, options: { json?: boolean; policy?: string[]; fix?: boolean }) => {
+      const shouldFix = options.fix || state.args.includes("--fix");
+      if (shouldFix) {
+        const fix = await applyLintFixes(file);
+        const parsedAfterFix = await parseForCommand(file, state, "lint", options.json);
+        if (!parsedAfterFix) return;
+        const policyPacks = options.policy ?? [];
+        const result = lintAgentSpec(parsedAfterFix.document, { policyPacks: policyPacks as never[] });
+        const payload = { command: "lint", file, policyPacks, success: result.issues.length === 0 && fix.manualReviewRequired.length === 0, issueCount: result.issues.length, issues: result.issues, fix };
+        if (fix.applied.length > 0 || fix.skipped.length > 0 || fix.manualReviewRequired.length > 0) state.exitCode = 1;
+        state.stdout.push(options.json ? jsonLine(payload) : formatFixResult(file, fix, result.issues));
+        return;
+      }
+
       const parsed = await parseForCommand(file, state, "lint", options.json);
       if (!parsed) {
         return;
@@ -291,6 +306,95 @@ function formatLintRuleExplanation(rule: { ruleId: string; severity: string; doc
   ].join("\n");
 }
 
+
+type FixEntry = { code: string; message: string; path: string };
+type FixResult = { applied: FixEntry[]; skipped: FixEntry[]; manualReviewRequired: FixEntry[] };
+
+async function applyLintFixes(file: string): Promise<FixResult> {
+  const source = await readFile(file, "utf8");
+  const doc = parseYaml(source) as Record<string, any>;
+  const result: FixResult = { applied: [], skipped: [], manualReviewRequired: [] };
+
+  if (!doc || typeof doc !== "object") {
+    result.skipped.push({ code: "schema-normalisation-skipped", path: "$", message: "File is not a YAML object." });
+    return result;
+  }
+
+  doc.tools ??= [];
+  for (const [index, tool] of (doc.tools as any[]).entries()) {
+    if (!tool.risk_level) {
+      tool.risk_level = "medium";
+      result.applied.push({ code: "added-risk-level", path: `tools.${index}.risk_level`, message: `Added default risk_level: medium to tool ${tool.name ?? index}.` });
+      result.manualReviewRequired.push({ code: "review-risk-level", path: `tools.${index}.risk_level`, message: "Review inferred risk_level because semantic tool risk was not changed automatically." });
+    }
+  }
+
+  doc.handoffs ??= [];
+  if ((doc.handoffs as any[]).length === 0) {
+    doc.handoffs.push({ name: "human_review", condition: "TODO: define handoff condition", destination: "queue:human-review", required_context: ["request_summary"] });
+    result.applied.push({ code: "added-handoff-scaffold", path: "handoffs.0", message: "Added human_review handoff scaffold." });
+    result.manualReviewRequired.push({ code: "review-handoff-condition", path: "handoffs.0.condition", message: "Replace TODO handoff condition with a domain-specific threshold." });
+  }
+
+  for (const [index, handoff] of (doc.handoffs as any[]).entries()) {
+    if (!String(handoff.condition ?? "").trim()) {
+      handoff.condition = "TODO: define handoff condition";
+      result.applied.push({ code: "completed-handoff-placeholder", path: `handoffs.${index}.condition`, message: `Added TODO condition placeholder to handoff ${handoff.name ?? index}.` });
+      result.manualReviewRequired.push({ code: "review-handoff-condition", path: `handoffs.${index}.condition`, message: "Define the actual handoff threshold before production use." });
+    }
+  }
+
+  const firstHandoff = (doc.handoffs as any[])[0]?.name ?? "human_review";
+  doc.routes ??= [];
+  let hasFallback = false;
+  for (const [index, route] of (doc.routes as any[]).entries()) {
+    const routeText = `${route.name ?? ""} ${route.description ?? ""} ${(route.triggers ?? []).join(" ")}`;
+    if (/fallback|unclear|policy gap/i.test(routeText) && String(route.target ?? "").startsWith("handoff:")) hasFallback = true;
+    const target = String(route.target ?? "");
+    if (target.startsWith("tool:")) {
+      const toolName = target.slice("tool:".length);
+      const exists = (doc.tools as any[]).some((tool) => tool.name === toolName);
+      if (!exists) {
+        route.target = `handoff:${firstHandoff}`;
+        result.applied.push({ code: "retargeted-undefined-route-target", path: `routes.${index}.target`, message: `Retargeted route ${route.name ?? index} to handoff:${firstHandoff}.` });
+        result.manualReviewRequired.push({ code: "review-route-target", path: `routes.${index}.target`, message: "Review retargeted route because undefined tool target was not semantically inferred." });
+      }
+    }
+  }
+  if (!hasFallback) {
+    doc.routes.push({ name: `fallback_${firstHandoff}`, description: "agentlint_fixme: review fallback route scaffold", triggers: ["fallback", "unclear", "policy gap"], target: `handoff:${firstHandoff}`, priority: 100 });
+    result.applied.push({ code: "added-fallback-scaffold", path: `routes.${doc.routes.length - 1}`, message: `Added fallback route scaffold to handoff:${firstHandoff}.` });
+    result.manualReviewRequired.push({ code: "review-fallback-route", path: `routes.${doc.routes.length - 1}`, message: "Review fallback route triggers and target before production use." });
+  }
+
+  const escalation = doc.constraints?.escalation;
+  if (Array.isArray(escalation)) {
+    for (const [index, value] of escalation.entries()) {
+      if (/try your best|use judge?ment|when needed|if needed|difficult/i.test(String(value))) {
+        escalation[index] = `agentlint_fixme: review escalation wording - ${String(value).replace(/try your best|use judge?ment|when needed|if needed|difficult/gi, "formal threshold required")}`;
+        result.applied.push({ code: "annotated-weak-escalation", path: `constraints.escalation.${index}`, message: "Annotated weak escalation wording without rewriting semantic intent." });
+        result.manualReviewRequired.push({ code: "review-escalation-threshold", path: `constraints.escalation.${index}`, message: "Replace annotation with formal conditions such as amount >= 50 or confidence < 0.7." });
+      }
+    }
+  }
+
+  await writeFile(file, stringify(doc, { sortMapEntries: false }), "utf8");
+  return result;
+}
+
+function formatFixResult(file: string, fix: FixResult, issues: Array<{ ruleId: string; message: string }>): string {
+  const lines = [`${file}: autofix completed`, "", "Fixes applied"];
+  lines.push(...(fix.applied.length ? fix.applied.map((item) => `  - ${item.message}`) : ["  - none"]));
+  lines.push("", "Skipped fixes");
+  lines.push(...(fix.skipped.length ? fix.skipped.map((item) => `  - ${item.message}`) : ["  - none"]));
+  lines.push("", "Manual review required");
+  lines.push(...(fix.manualReviewRequired.length ? fix.manualReviewRequired.map((item) => `  - ${item.message}`) : ["  - none"]));
+  if (issues.length > 0) {
+    lines.push("", "Remaining lint issues", ...issues.map((issue) => `  - ${issue.ruleId}: ${issue.message}`));
+  }
+  return `${lines.join("\n")}\n`;
+}
+
 async function parseForCommand(
   file: string,
   state: CliState,
@@ -356,12 +460,14 @@ export async function runCli(args: string[], programName = "agentspec"): Promise
   const state: CliState = {
     exitCode: 0,
     stdout: [],
-    stderr: []
+    stderr: [],
+    args
   };
   const program = createCli(state, programName);
 
   try {
-    await program.parseAsync(args, { from: "user" });
+    const parseArgs = args[0] === "lint" && args.includes("--fix") ? args.filter((arg) => arg !== "--fix") : args;
+    await program.parseAsync(parseArgs, { from: "user" });
   } catch (error) {
     if (error instanceof CommanderError) {
       state.exitCode = error.exitCode;
