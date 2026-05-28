@@ -1,7 +1,7 @@
 {
   "name": "@agentspec/grammar",
   "version": "0.1.0",
-  "description": "Formal condition grammar validation and behaviour graph compilation for Agent Lint specs.",
+  "description": "Experimental formal condition grammar validation and behaviour graph compilation for Agent Lint specs.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -27,5 +27,24 @@
   "bugs": {
     "url": "https://github.com/AJ-Zafar/AgentLint/issues"
   },
-  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme"
+  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "keywords": [
+    "agent-lint",
+    "agents",
+    "ai",
+    "experimental",
+    "instructions"
+  ],
+  "agentLint": {
+    "status": "experimental"
+  }
 }

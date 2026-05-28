@@ -18,7 +18,7 @@
     "@agentspec/spec": "workspace:*",
     "yaml": "^2.9.0"
   },
-  "description": "YAML parser and validation wrapper for AgentSpec files.",
+  "description": "YAML parser and validation wrapper for Agent Lint spec files.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -28,5 +28,20 @@
   "bugs": {
     "url": "https://github.com/AJ-Zafar/AgentLint/issues"
   },
-  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme"
+  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "keywords": [
+    "agent-lint",
+    "agents",
+    "ai",
+    "instructions"
+  ]
 }

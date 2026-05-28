@@ -88,5 +88,25 @@
   "bugs": {
     "url": "https://github.com/AJ-Zafar/AgentLint/issues"
   },
-  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme"
+  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json",
+    "language-configuration.json"
+  ],
+  "keywords": [
+    "agent-lint",
+    "agents",
+    "ai",
+    "experimental",
+    "instructions"
+  ],
+  "agentLint": {
+    "status": "experimental"
+  }
 }

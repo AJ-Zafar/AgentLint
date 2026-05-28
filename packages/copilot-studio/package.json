@@ -18,7 +18,7 @@
     "@agentspec/spec": "workspace:*",
     "@agentspec/parser": "workspace:*"
   },
-  "description": "Experimental mapper from AgentSpec to Microsoft Copilot Studio implementation plans.",
+  "description": "Experimental mapper from Agent Lint specs to Microsoft Copilot Studio implementation plans.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -28,5 +28,24 @@
   "bugs": {
     "url": "https://github.com/AJ-Zafar/AgentLint/issues"
   },
-  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme"
+  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "keywords": [
+    "agent-lint",
+    "agents",
+    "ai",
+    "experimental",
+    "instructions"
+  ],
+  "agentLint": {
+    "status": "experimental"
+  }
 }

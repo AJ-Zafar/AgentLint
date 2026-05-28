@@ -34,7 +34,7 @@
     "@agentspec/coverage": "workspace:*",
     "@agentspec/report": "workspace:*"
   },
-  "description": "Command-line interface for validating, linting, testing and diffing AgentSpec files.",
+  "description": "Command-line interface for validating, linting, testing, graphing and reporting on Agent Lint specs.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -44,5 +44,20 @@
   "bugs": {
     "url": "https://github.com/AJ-Zafar/AgentLint/issues"
   },
-  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme"
+  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "keywords": [
+    "agent-lint",
+    "agents",
+    "ai",
+    "instructions"
+  ]
 }

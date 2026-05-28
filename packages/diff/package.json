@@ -18,7 +18,7 @@
     "@agentspec/spec": "workspace:*",
     "@agentspec/parser": "workspace:*"
   },
-  "description": "Behavioural diff engine for comparing AgentSpec files.",
+  "description": "Behavioural diff and simulated regression analysis for Agent Lint specs.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -28,5 +28,20 @@
   "bugs": {
     "url": "https://github.com/AJ-Zafar/AgentLint/issues"
   },
-  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme"
+  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "keywords": [
+    "agent-lint",
+    "agents",
+    "ai",
+    "instructions"
+  ]
 }

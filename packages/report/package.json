@@ -21,5 +21,24 @@
     "@agentspec/coverage": "workspace:*",
     "@agentspec/replay": "workspace:*"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "keywords": [
+    "agent-lint",
+    "agents",
+    "ai",
+    "experimental",
+    "instructions"
+  ],
+  "agentLint": {
+    "status": "experimental"
+  }
 }

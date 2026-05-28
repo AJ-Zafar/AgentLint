@@ -12,6 +12,8 @@ AI instruction engineering is in a similar place today. Agent instructions are o
 
 Agent Lint exists to bring some of that missing engineering discipline to AI agent instructions.
 
+This repository is prepared for an experimental v0.1.0 release. See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
+
 Thanks to Chris Huntingford for highlighting the "HTML before VS Code" comparison that helped shape the framing for this project.
 
 ## What Agent Lint is
@@ -377,7 +379,7 @@ The project should keep the core specification, parser, linter, deterministic te
 
 ## Status: experimental
 
-Agent Lint is experimental and early-stage. The YAML format, linter rules, package boundaries and Copilot Studio extraction logic may change as the project is tested against more real-world agent instruction workflows.
+Agent Lint is experimental and early-stage. The YAML format, linter rules, package boundaries and Copilot Studio extraction logic may change as the project is tested against more real-world agent instruction workflows. Several packages are explicitly marked experimental in package metadata.
 
 Use it today as an engineering assurance tool for review, CI checks and regression detection. Do not treat it as a guarantee of deterministic AI behaviour.
 
