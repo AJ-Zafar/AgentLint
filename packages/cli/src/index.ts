@@ -4,6 +4,8 @@ import { lintAgentSpec } from "@agentspec/linter";
 import { runAgentSpecTests, type TestRunResult } from "@agentspec/test-runner";
 import { diffAgentSpecs, type BehavioralDiffResult } from "@agentspec/diff";
 import { compileAgentSpecGraph, type GraphCompilationResult } from "@agentspec/grammar";
+import { compileInstructionsToAgentSpec } from "@agentspec/compiler";
+import { readFile } from "node:fs/promises";
 import { convertAgentSpecToCopilotStudioPlan } from "@agentspec/copilot-studio";
 import { auditCopilotStudioSolution, type CopilotStudioAuditReport } from "@agentspec/copilot-studio-audit";
 
@@ -93,6 +95,16 @@ export function createCli(state: CliState, programName = "agentspec"): Command {
       if (result.summary.failed > 0) {
         state.exitCode = 1;
       }
+    });
+
+  program
+    .command("compile")
+    .argument("<file>", "Markdown or text file containing loose natural language instructions")
+    .description("Experimentally compile loose natural language instructions into Agent Lint YAML.")
+    .action(async (file: string) => {
+      const input = await readFile(file, "utf8");
+      const result = compileInstructionsToAgentSpec(input);
+      state.stdout.push(result.yaml);
     });
 
   program

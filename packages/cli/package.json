@@ -27,7 +27,8 @@
     "@agentspec/copilot-studio": "workspace:*",
     "commander": "^14.0.3",
     "@agentspec/copilot-studio-audit": "workspace:*",
-    "@agentspec/grammar": "workspace:*"
+    "@agentspec/grammar": "workspace:*",
+    "@agentspec/compiler": "workspace:*"
   },
   "description": "Command-line interface for validating, linting, testing and diffing AgentSpec files.",
   "license": "MIT",

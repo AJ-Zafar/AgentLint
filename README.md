@@ -46,6 +46,7 @@ The current workspace includes:
 - `@agentspec/test-runner`: deterministic local route, handoff, tool and assertion checks
 - `@agentspec/diff`: behavioural diff engine for comparing instruction specs
 - `@agentspec/grammar`: structured condition grammar and behaviour graph compilation
+- `@agentspec/compiler`: experimental deterministic compiler from loose instructions to Agent Lint YAML
 - `@agentspec/cli`: CLI commands for validate, lint, test, diff, Copilot planning and Copilot audit
 - `agentspec-vscode`: VS Code extension package for diagnostics and current-file commands
 - `@agentspec/copilot-studio`: experimental markdown implementation plan mapper for Copilot Studio
@@ -232,6 +233,14 @@ pnpm agentspec diff ./old.agentspec.yaml ./new.agentspec.yaml --json
 ```
 
 Reports behavioural impact rather than raw line changes. The implemented diff detects changed goals, changed `do` and `do_not` instructions, added or removed tools, increased tool risk, changed route triggers, removed fallback behaviour, changed escalation conditions, changed handoff destinations and changed tests.
+
+### Compile natural language instructions
+
+```bash
+pnpm agentlint compile ./instructions.md
+```
+
+Experimentally compiles loose natural language instructions into structured Agent Lint YAML using deterministic heuristics. The compiler extracts likely goals, rules, constraints, tool references, routes and escalation rules, then adds confidence metadata and ambiguity warnings. It does not call external LLM APIs.
 
 ### Behaviour graph
 

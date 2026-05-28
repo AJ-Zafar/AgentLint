@@ -29,6 +29,14 @@ export type AgentSpecPrecedence = {
   routes?: string[];
 };
 
+export type AgentSpecCompilerMetadata = {
+  generated_by: string;
+  status: "experimental";
+  confidence: Record<string, number>;
+  inferred_fields: string[];
+  warnings: string[];
+};
+
 export type AgentSpecAgent = {
   name: string;
   description: string;
@@ -105,6 +113,7 @@ export type AgentSpecDocument = {
   routes: AgentSpecRoute[];
   handoffs: AgentSpecHandoff[];
   precedence?: AgentSpecPrecedence;
+  compiler?: AgentSpecCompilerMetadata;
   tests?: AgentSpecTest[];
 };
 
@@ -197,6 +206,13 @@ export const agentSpecSchema = z.strictObject({
     })
   ),
   precedence: z.strictObject({ routes: z.array(nonEmptyString).optional() }).optional(),
+  compiler: z.strictObject({
+    generated_by: nonEmptyString,
+    status: z.literal("experimental"),
+    confidence: z.record(z.string(), z.number().min(0).max(1)),
+    inferred_fields: z.array(nonEmptyString),
+    warnings: z.array(z.string())
+  }).optional(),
   tests: z
     .array(
       z.strictObject({
@@ -313,6 +329,13 @@ export function generateAgentSpecJsonSchema(): JsonSchema {
         })
       ),
       precedence: objectSchema({ routes: stringArraySchema() }, []),
+      compiler: objectSchema({
+        generated_by: stringSchema(),
+        status: { const: "experimental" },
+        confidence: { type: "object", additionalProperties: { type: "number", minimum: 0, maximum: 1 } },
+        inferred_fields: stringArraySchema(),
+        warnings: { type: "array", items: { type: "string" } }
+      }),
       tests: arrayOf(
         objectSchema(
           {

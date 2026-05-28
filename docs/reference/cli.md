@@ -83,3 +83,11 @@ pnpm agentlint graph ./file.agentspec.yaml --json
 ```
 
 Compiles a spec into an internal behaviour graph. The graph command validates structured condition expressions, route dependencies, precedence definitions and unreachable branches.
+
+## `compile`
+
+```bash
+pnpm agentlint compile ./instructions.md
+```
+
+Experimentally compiles loose natural language instructions into structured Agent Lint YAML using deterministic heuristics. The output includes compiler confidence metadata and unresolved ambiguity warnings. No external LLM APIs are called.

@@ -201,6 +201,18 @@ describe("agentspec CLI", () => {
 
 
 
+
+  it("compiles loose instructions into Agent Lint YAML", async () => {
+    const result = await runCli(["compile", "packages/compiler/fixtures/support-instructions.md"], "agentlint");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("generated_by: agentlint-natural-language-compiler");
+    expect(result.stdout).toContain("primary_goal: Help customers with refund and invoice questions using");
+    expect(result.stdout).toContain("policy-approved routes.");
+    expect(result.stdout).toContain("confidence:");
+    expect(result.stdout).toContain("warnings:");
+  });
+
   it("prints a compiled behaviour graph using the agentlint alias", async () => {
     const filePath = await writeFixture(
       "graph.agentspec.yaml",

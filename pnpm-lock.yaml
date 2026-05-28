@@ -26,6 +26,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@agentspec/compiler':
+        specifier: workspace:*
+        version: link:../compiler
       '@agentspec/copilot-studio':
         specifier: workspace:*
         version: link:../copilot-studio
@@ -53,6 +56,15 @@ importers:
       commander:
         specifier: ^14.0.3
         version: 14.0.3
+
+  packages/compiler:
+    dependencies:
+      '@agentspec/spec':
+        specifier: workspace:*
+        version: link:../spec
+      yaml:
+        specifier: latest
+        version: 2.9.0
 
   packages/copilot-studio:
     dependencies:
