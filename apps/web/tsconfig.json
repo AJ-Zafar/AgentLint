@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "paths": {
+      "@agentspec/spec": ["../../packages/spec/src/index.ts"],
+      "@agentspec/parser": ["../../packages/parser/src/index.ts"],
+      "@agentspec/linter": ["../../packages/linter/src/index.ts"],
+      "@agentspec/test-runner": ["../../packages/test-runner/src/index.ts"],
+      "@agentspec/diff": ["../../packages/diff/src/index.ts"],
+      "@agentspec/grammar": ["../../packages/grammar/src/index.ts"],
+      "@agentspec/compiler": ["../../packages/compiler/src/index.ts"],
+      "@agentspec/replay": ["../../packages/replay/src/index.ts"],
+      "@agentspec/coverage": ["../../packages/coverage/src/index.ts"],
+      "@agentspec/report": ["../../packages/report/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}
