@@ -55,6 +55,7 @@ export function lintAgentSpec(spec: AgentSpecDocument): LintResult {
   const escalationIds = new Set(spec.escalations.map((escalation) => escalation.id));
   const referencedTools = new Set(spec.routes.flatMap((route) => route.tools ?? []));
   const referencedEscalations = new Set<string>();
+  let hasUndefinedEscalation = false;
 
   if (!spec.instructions.fallback.trim()) {
     issues.push({
@@ -108,6 +109,7 @@ export function lintAgentSpec(spec: AgentSpecDocument): LintResult {
     if (route.escalateTo) {
       referencedEscalations.add(route.escalateTo);
       if (!escalationIds.has(route.escalateTo)) {
+        hasUndefinedEscalation = true;
         issues.push({
           code: "undefined-escalation",
           severity: "error",
@@ -131,6 +133,7 @@ export function lintAgentSpec(spec: AgentSpecDocument): LintResult {
     if (test.expect.escalation) {
       referencedEscalations.add(test.expect.escalation);
       if (!escalationIds.has(test.expect.escalation)) {
+        hasUndefinedEscalation = true;
         issues.push({
           code: "undefined-escalation",
           severity: "error",
@@ -166,7 +169,7 @@ export function lintAgentSpec(spec: AgentSpecDocument): LintResult {
   const unreachableEscalations = spec.escalations
     .map((escalation) => escalation.id)
     .filter((escalationId) => !referencedEscalations.has(escalationId));
-  if (unreachableEscalations.length > 0) {
+  if (!hasUndefinedEscalation && unreachableEscalations.length > 0) {
     issues.push({
       code: "unreachable-escalation-path",
       severity: "warning",

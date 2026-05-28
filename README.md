@@ -18,10 +18,10 @@ pnpm install
 pnpm test
 pnpm build
 
-pnpm --filter @agentspec/cli exec agentspec validate examples/customer-support.agentspec.yaml
-pnpm --filter @agentspec/cli exec agentspec lint examples/customer-support.agentspec.yaml
-pnpm --filter @agentspec/cli exec agentspec test examples/customer-support.agentspec.yaml
-pnpm --filter @agentspec/cli exec agentspec diff examples/customer-support.agentspec.yaml examples/copilot-studio-agent.agentspec.yaml
+pnpm agentspec validate examples/customer-support.agentspec.yaml
+pnpm agentspec lint examples/customer-support.agentspec.yaml
+pnpm agentspec test examples/customer-support.agentspec.yaml
+pnpm agentspec diff examples/customer-support.agentspec.yaml examples/copilot-studio-agent.agentspec.yaml
 ```
 
 ## AgentSpec shape

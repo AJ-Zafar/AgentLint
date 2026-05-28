@@ -7,7 +7,8 @@
   "scripts": {
     "build": "tsc -b packages/spec packages/parser packages/linter packages/cli",
     "test": "vitest run",
-    "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo"
+    "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
+    "agentspec": "node packages/cli/dist/bin/agentspec.js"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
