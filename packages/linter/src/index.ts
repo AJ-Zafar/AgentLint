@@ -7,8 +7,8 @@ export type LintIssueCode =
   | "undefined-route"
   | "undefined-tool"
   | "unused-tool"
-  | "undefined-escalation"
-  | "unreachable-escalation-path"
+  | "undefined-handoff"
+  | "unreachable-handoff"
   | "weak-safety-boundary";
 
 export type LintIssueSeverity = "warning" | "error";
@@ -38,6 +38,7 @@ const safetyBoundaryPatterns = [
   /\bdo not\b/i,
   /\bonly\b/i,
   /\bescalat(e|ion)\b/i,
+  /\bhandoff\b/i,
   /\bhuman\b/i,
   /\bprotected\b/i,
   /\bpersonal\b/i,
@@ -50,150 +51,164 @@ const safetyBoundaryPatterns = [
 
 export function lintAgentSpec(spec: AgentSpecDocument): LintResult {
   const issues: LintIssue[] = [];
-  const routeIds = new Set(spec.routes.map((route) => route.id));
-  const toolIds = new Set(spec.tools.map((tool) => tool.id));
-  const escalationIds = new Set(spec.escalations.map((escalation) => escalation.id));
-  const referencedTools = new Set(spec.routes.flatMap((route) => route.tools ?? []));
-  const referencedEscalations = new Set<string>();
-  let hasUndefinedEscalation = false;
+  const routeNames = new Set(spec.routes.map((route) => route.name));
+  const toolNames = new Set(spec.tools.map((tool) => tool.name));
+  const handoffNames = new Set(spec.handoffs.map((handoff) => handoff.name));
+  const referencedTools = new Set<string>();
+  const referencedHandoffs = new Set<string>();
+  const escalationText = spec.constraints.escalation.join("\n").toLowerCase();
+  for (const handoff of spec.handoffs) {
+    if (escalationText.includes(handoff.name.toLowerCase())) {
+      referencedHandoffs.add(handoff.name);
+    }
+  }
+  let hasUndefinedHandoff = false;
 
-  if (!spec.instructions.fallback.trim()) {
+  if (spec.constraints.escalation.length === 0 || spec.handoffs.length === 0) {
     issues.push({
       code: "missing-fallback-behavior",
       severity: "error",
-      path: "instructions.fallback",
-      message: "Instructions must define fallback behavior for uncertain situations."
+      path: spec.constraints.escalation.length === 0 ? "constraints.escalation" : "handoffs",
+      message: "AgentSpec must define escalation constraints and at least one handoff for fallback behavior."
     });
   }
 
-  const conflictingAction = findConflictingAlwaysNever(spec.instructions.system);
-  if (conflictingAction) {
+  const conflictingInstruction = findConflictingInstruction(spec.instructions.do, spec.instructions.do_not);
+  if (conflictingInstruction) {
     issues.push({
       code: "conflicting-instruction",
       severity: "error",
-      path: "instructions.system",
-      message: `Instruction both requires and forbids "${conflictingAction}".`
+      path: "instructions",
+      message: `Instruction appears in both do and do_not: "${conflictingInstruction}".`
     });
   }
 
-  if (spec.instructions.constraints.some((constraint) => vagueConstraintPatterns.some((pattern) => pattern.test(constraint)))) {
+  const allConstraints = Object.values(spec.constraints).flat();
+  if (allConstraints.some((constraint) => vagueConstraintPatterns.some((pattern) => pattern.test(constraint)))) {
     issues.push({
       code: "ambiguous-constraint",
       severity: "warning",
-      path: "instructions.constraints",
+      path: "constraints",
       message: "Constraints include vague language that is hard to test deterministically."
     });
   }
 
-  if (!spec.instructions.constraints.some((constraint) => safetyBoundaryPatterns.some((pattern) => pattern.test(constraint)))) {
+  const safetyText = [...spec.constraints.safety, ...spec.constraints.privacy, ...spec.instructions.do_not].join("\n");
+  if (!safetyBoundaryPatterns.some((pattern) => pattern.test(safetyText))) {
     issues.push({
       code: "weak-safety-boundary",
       severity: "warning",
-      path: "instructions.constraints",
-      message: "Constraints should include explicit safety, privacy, escalation, or refusal boundaries."
+      path: "constraints.safety",
+      message: "Safety and privacy constraints should include explicit boundaries, refusals, or escalation requirements."
     });
   }
 
   for (const [routeIndex, route] of spec.routes.entries()) {
-    for (const toolId of route.tools ?? []) {
-      if (!toolIds.has(toolId)) {
+    const target = parseTarget(route.target);
+
+    if (target?.kind === "tool") {
+      referencedTools.add(target.name);
+      if (!toolNames.has(target.name)) {
         issues.push({
           code: "undefined-tool",
           severity: "error",
-          path: `routes.${routeIndex}.tools`,
-          message: `Route "${route.id}" references undefined tool "${toolId}".`
+          path: `routes.${routeIndex}.target`,
+          message: `Route "${route.name}" targets undefined tool "${target.name}".`
         });
       }
     }
 
-    if (route.escalateTo) {
-      referencedEscalations.add(route.escalateTo);
-      if (!escalationIds.has(route.escalateTo)) {
-        hasUndefinedEscalation = true;
+    if (target?.kind === "handoff") {
+      referencedHandoffs.add(target.name);
+      if (!handoffNames.has(target.name)) {
+        hasUndefinedHandoff = true;
         issues.push({
-          code: "undefined-escalation",
+          code: "undefined-handoff",
           severity: "error",
-          path: `routes.${routeIndex}.escalateTo`,
-          message: `Route "${route.id}" escalates to undefined path "${route.escalateTo}".`
+          path: `routes.${routeIndex}.target`,
+          message: `Route "${route.name}" targets undefined handoff "${target.name}".`
         });
       }
     }
   }
 
   for (const [testIndex, test] of (spec.tests ?? []).entries()) {
-    if (test.expect.route && !routeIds.has(test.expect.route)) {
+    if (test.expected_route && !routeNames.has(test.expected_route)) {
       issues.push({
         code: "undefined-route",
         severity: "error",
-        path: `tests.${testIndex}.expect.route`,
-        message: `Test "${test.id}" expects undefined route "${test.expect.route}".`
+        path: `tests.${testIndex}.expected_route`,
+        message: `Test "${test.name}" expects undefined route "${test.expected_route}".`
       });
     }
 
-    if (test.expect.escalation) {
-      if (!escalationIds.has(test.expect.escalation)) {
-        hasUndefinedEscalation = true;
-        issues.push({
-          code: "undefined-escalation",
-          severity: "error",
-          path: `tests.${testIndex}.expect.escalation`,
-          message: `Test "${test.id}" expects undefined escalation "${test.expect.escalation}".`
-        });
-      }
+    if (test.expected_handoff && !handoffNames.has(test.expected_handoff)) {
+      hasUndefinedHandoff = true;
+      issues.push({
+        code: "undefined-handoff",
+        severity: "error",
+        path: `tests.${testIndex}.expected_handoff`,
+        message: `Test "${test.name}" expects undefined handoff "${test.expected_handoff}".`
+      });
     }
 
-    for (const toolId of test.expect.tools ?? []) {
-      if (!toolIds.has(toolId)) {
+    for (const toolName of [...test.expected_tool_calls, ...test.forbidden_tool_calls]) {
+      if (!toolNames.has(toolName)) {
         issues.push({
           code: "undefined-tool",
           severity: "error",
-          path: `tests.${testIndex}.expect.tools`,
-          message: `Test "${test.id}" expects undefined tool "${toolId}".`
+          path: `tests.${testIndex}.expected_tool_calls`,
+          message: `Test "${test.name}" references undefined tool "${toolName}".`
         });
       }
     }
   }
 
-  const unusedTools = spec.tools.map((tool) => tool.id).filter((toolId) => !referencedTools.has(toolId));
+  const unusedTools = spec.tools.map((tool) => tool.name).filter((toolName) => !referencedTools.has(toolName));
   if (unusedTools.length > 0) {
     issues.push({
       code: "unused-tool",
       severity: "warning",
       path: "tools",
-      message: `Tools are defined but never referenced: ${unusedTools.join(", ")}.`
+      message: `Tools are defined but never targeted by executable routes: ${unusedTools.join(", ")}.`
     });
   }
 
-  const unreachableEscalations = spec.escalations
-    .map((escalation) => escalation.id)
-    .filter((escalationId) => !referencedEscalations.has(escalationId));
-  if (!hasUndefinedEscalation && unreachableEscalations.length > 0) {
+  const unreachableHandoffs = spec.handoffs
+    .map((handoff) => handoff.name)
+    .filter((handoffName) => !referencedHandoffs.has(handoffName));
+  if (!hasUndefinedHandoff && unreachableHandoffs.length > 0) {
     issues.push({
-      code: "unreachable-escalation-path",
+      code: "unreachable-handoff",
       severity: "warning",
-      path: "escalations",
-      message: `Escalation paths are defined but unreachable: ${unreachableEscalations.join(", ")}.`
+      path: "handoffs",
+      message: `Handoffs are defined but unreachable from route targets: ${unreachableHandoffs.join(", ")}.`
     });
   }
 
   return { issues };
 }
 
-function findConflictingAlwaysNever(text: string): string | undefined {
-  const normalized = text.toLowerCase();
-  const required = extractInstructionActions(normalized, "always");
-  const forbidden = extractInstructionActions(normalized, "never");
-
-  return required.find((action) => forbidden.includes(action));
+function findConflictingInstruction(doList: string[], doNotList: string[]): string | undefined {
+  const forbidden = new Set(doNotList.map(normalizeInstruction));
+  return doList.find((instruction) => forbidden.has(normalizeInstruction(instruction)));
 }
 
-function extractInstructionActions(text: string, keyword: "always" | "never"): string[] {
-  const matches = [...text.matchAll(new RegExp(`\\b${keyword}\\s+([^.!?]+)`, "gi"))];
-  return matches
-    .map((match) => normalizeAction(match[1] ?? ""))
-    .filter((action) => action.length > 0);
+function normalizeInstruction(instruction: string): string {
+  return instruction
+    .toLowerCase()
+    .replace(/\b(do not|don't|never|must not|please|the|a|an)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
-function normalizeAction(action: string): string {
-  return action.replace(/\b(the|a|an)\b/g, " ").replace(/\s+/g, " ").trim();
+function parseTarget(target: string): { kind: "tool" | "handoff"; name: string } | undefined {
+  const [kind, ...rest] = target.split(":");
+  const name = rest.join(":").trim();
+
+  if ((kind === "tool" || kind === "handoff") && name.length > 0) {
+    return { kind, name };
+  }
+
+  return undefined;
 }

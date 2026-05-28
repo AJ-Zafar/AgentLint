@@ -5,46 +5,76 @@ import { describe, expect, it } from "vitest";
 import { runCli } from "./index";
 
 const validYaml = `
-agentspec: "1.0"
-metadata:
-  name: Customer Support Agent
-  version: 0.1.0
 agent:
-  id: customer-support
-  description: Handles support requests.
+  name: Customer Support Agent
+  description: Routes customer support requests.
+  version: 1.0.0
+  owner: support-operations
+  domain: customer-support
+persona:
+  role: Policy-grounded support triage assistant
+  tone: calm and professional
+  verbosity: concise
+  style_rules:
+    - Use plain language.
 instructions:
-  system: Resolve customer requests using approved policies.
-  goals:
-    - Route billing requests to billing.
-  constraints:
-    - Never request full payment card numbers.
-  fallback: Escalate unclear requests to human-support.
-routes:
-  - id: billing
-    when: Customer asks about invoices or refunds.
-    instructions:
-      - Confirm the account identifier.
-    tools:
-      - lookup-account
-    escalateTo: human-support
+  primary_goal: Classify support requests and choose an approved route.
+  secondary_goals:
+    - Collect only required account context.
+  do:
+    - Use declared routes before answering.
+  do_not:
+    - Do not request full payment card numbers.
+constraints:
+  safety:
+    - Escalate threats of harm to human_support.
+  privacy:
+    - Never expose passwords, secrets, or full payment card numbers.
+  compliance:
+    - Follow the published refund policy.
+  escalation:
+    - Fallback to human_support when policy coverage is unclear.
+  data_access:
+    - Only use account fields returned by approved tools.
 tools:
-  - id: lookup-account
-    description: Fetches account metadata from a local fixture.
-    inputSchema:
-      type: object
-escalations:
-  - id: human-support
-    when: Human approval is required.
-    target: queue:human-support
+  - name: account_lookup
+    description: Reads account status from a local fixture.
+    allowed_operations:
+      - read_account_status
+    forbidden_operations:
+      - read_full_payment_card
+    requires_auth: true
+    risk_level: medium
+routes:
+  - name: billing_support
+    description: Handles invoices, subscriptions, and refund policy questions.
+    triggers:
+      - invoice
+      - refund
+      - subscription
+      - payment
+    target: tool:account_lookup
+    priority: 10
+handoffs:
+  - name: human_support
+    condition: Refund approval, unclear account ownership, or policy exception.
+    destination: queue:human-support
+    required_context:
+      - account_id
+      - request_summary
 tests:
-  - id: billing-route
-    input: I need a refund.
-    expect:
-      route: billing
-      escalation: human-support
+  - name: billing refund route
+    input: Can I get a refund for my latest invoice?
+    expected_route: billing_support
+    expected_handoff: human_support
+    expected_tool_calls:
+      - account_lookup
+    forbidden_tool_calls: []
+    assertions:
+      - Does not ask for full payment card details.
 `;
 
-const lintYaml = validYaml.replace("lookup-account", "missing-tool");
+const lintYaml = validYaml.replace("target: tool:account_lookup", "target: tool:missing_tool");
 
 async function writeFixture(name: string, contents: string): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), "agentspec-cli-"));
@@ -81,16 +111,16 @@ describe("agentspec CLI", () => {
   it("fails deterministic declared tests when a defined expected route does not match the simulated route", async () => {
     const wrongRouteYaml = validYaml
       .replace(
-        "routes:\n  - id: billing",
-        "routes:\n  - id: technical-support\n    when: Customer asks about technical support.\n    instructions:\n      - Gather environment details.\n    escalateTo: human-support\n  - id: billing"
+        "routes:\n  - name: billing_support",
+        "routes:\n  - name: technical_support\n    description: Handles device setup and app troubleshooting.\n    triggers:\n      - device\n      - app\n      - technical\n    target: handoff:human_support\n    priority: 5\n  - name: billing_support"
       )
-      .replace("route: billing", "route: technical-support");
+      .replace("expected_route: billing_support", "expected_route: technical_support");
     const filePath = await writeFixture("wrong-route.agentspec.yaml", wrongRouteYaml);
 
     const result = await runCli(["test", filePath]);
 
     expect(result.exitCode).toBe(1);
-    expect(result.stdout).toContain('expected route "technical-support" but simulated "billing"');
+    expect(result.stdout).toContain('expected route "technical_support" but simulated "billing_support"');
   });
 
   it("diffs two AgentSpec YAML files", async () => {
@@ -103,6 +133,6 @@ describe("agentspec CLI", () => {
     const result = await runCli(["diff", oldPath, newPath]);
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("metadata.name");
+    expect(result.stdout).toContain("agent.name");
   });
 });

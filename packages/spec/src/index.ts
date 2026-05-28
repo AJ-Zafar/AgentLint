@@ -9,71 +9,88 @@ export type JsonSchema = {
   required?: string[];
   items?: JsonSchema;
   enum?: unknown[];
+  const?: unknown;
   additionalProperties?: boolean | JsonSchema;
   minItems?: number;
   minLength?: number;
+  minimum?: number;
   [key: string]: unknown;
 };
 
-export type AgentSpecMetadata = {
-  name: string;
-  version: string;
-  description?: string;
-  owners?: string[];
-};
+export type AgentSpecRiskLevel = "low" | "medium" | "high" | "critical";
 
 export type AgentSpecAgent = {
-  id: string;
+  name: string;
   description: string;
+  version: string;
+  owner: string;
+  domain: string;
+};
+
+export type AgentSpecPersona = {
+  role: string;
+  tone: string;
+  verbosity: string;
+  style_rules: string[];
 };
 
 export type AgentSpecInstructions = {
-  system: string;
-  goals: string[];
-  constraints: string[];
-  fallback: string;
+  primary_goal: string;
+  secondary_goals: string[];
+  do: string[];
+  do_not: string[];
 };
 
-export type AgentSpecRoute = {
-  id: string;
-  when: string;
-  instructions: string[];
-  tools?: string[];
-  escalateTo?: string;
+export type AgentSpecConstraints = {
+  safety: string[];
+  privacy: string[];
+  compliance: string[];
+  escalation: string[];
+  data_access: string[];
 };
 
 export type AgentSpecTool = {
-  id: string;
+  name: string;
   description: string;
-  inputSchema: JsonSchema;
+  allowed_operations: string[];
+  forbidden_operations: string[];
+  requires_auth: boolean;
+  risk_level: AgentSpecRiskLevel;
 };
 
-export type AgentSpecEscalation = {
-  id: string;
-  when: string;
+export type AgentSpecRoute = {
+  name: string;
+  description: string;
+  triggers: string[];
   target: string;
+  priority: number;
 };
 
-export type AgentSpecTestExpectation = {
-  route?: string;
-  escalation?: string;
-  tools?: string[];
+export type AgentSpecHandoff = {
+  name: string;
+  condition: string;
+  destination: string;
+  required_context: string[];
 };
 
 export type AgentSpecTest = {
-  id: string;
+  name: string;
   input: string;
-  expect: AgentSpecTestExpectation;
+  expected_route?: string;
+  expected_handoff?: string;
+  expected_tool_calls: string[];
+  forbidden_tool_calls: string[];
+  assertions: string[];
 };
 
 export type AgentSpecDocument = {
-  agentspec: "1.0";
-  metadata: AgentSpecMetadata;
   agent: AgentSpecAgent;
+  persona: AgentSpecPersona;
   instructions: AgentSpecInstructions;
-  routes: AgentSpecRoute[];
+  constraints: AgentSpecConstraints;
   tools: AgentSpecTool[];
-  escalations: AgentSpecEscalation[];
+  routes: AgentSpecRoute[];
+  handoffs: AgentSpecHandoff[];
   tests?: AgentSpecTest[];
 };
 
@@ -94,184 +111,183 @@ export type AgentSpecValidationResult =
     };
 
 const nonEmptyString = z.string().trim().min(1);
+const nonEmptyStringArray = z.array(nonEmptyString);
 
-export const jsonSchemaSchema: z.ZodType<JsonSchema> = z.lazy(() =>
-  z
-    .object({
-      $schema: z.string().optional(),
-      type: z.string().optional(),
-      title: z.string().optional(),
-      description: z.string().optional(),
-      properties: z.record(z.string(), jsonSchemaSchema).optional(),
-      required: z.array(z.string()).optional(),
-      items: jsonSchemaSchema.optional(),
-      enum: z.array(z.unknown()).optional(),
-      additionalProperties: z.union([z.boolean(), jsonSchemaSchema]).optional(),
-      minItems: z.number().optional(),
-      minLength: z.number().optional()
-    })
-    .catchall(z.unknown())
-);
+export const riskLevelSchema = z.enum(["low", "medium", "high", "critical"]);
 
 export const agentSpecSchema = z.strictObject({
-  agentspec: z.literal("1.0"),
-  metadata: z.strictObject({
-    name: nonEmptyString,
-    version: z.coerce.string().pipe(nonEmptyString),
-    description: nonEmptyString.optional(),
-    owners: z.array(nonEmptyString).optional()
-  }),
   agent: z.strictObject({
-    id: nonEmptyString,
-    description: nonEmptyString
+    name: nonEmptyString,
+    description: nonEmptyString,
+    version: z.coerce.string().pipe(nonEmptyString),
+    owner: nonEmptyString,
+    domain: nonEmptyString
+  }),
+  persona: z.strictObject({
+    role: nonEmptyString,
+    tone: nonEmptyString,
+    verbosity: nonEmptyString,
+    style_rules: nonEmptyStringArray
   }),
   instructions: z.strictObject({
-    system: nonEmptyString,
-    goals: z.array(nonEmptyString),
-    constraints: z.array(nonEmptyString),
-    fallback: nonEmptyString
+    primary_goal: nonEmptyString,
+    secondary_goals: nonEmptyStringArray,
+    do: nonEmptyStringArray,
+    do_not: nonEmptyStringArray
   }),
-  routes: z.array(
-    z.strictObject({
-      id: nonEmptyString,
-      when: nonEmptyString,
-      instructions: z.array(nonEmptyString),
-      tools: z.array(nonEmptyString).optional(),
-      escalateTo: nonEmptyString.optional()
-    })
-  ),
+  constraints: z.strictObject({
+    safety: nonEmptyStringArray,
+    privacy: nonEmptyStringArray,
+    compliance: nonEmptyStringArray,
+    escalation: nonEmptyStringArray,
+    data_access: nonEmptyStringArray
+  }),
   tools: z.array(
     z.strictObject({
-      id: nonEmptyString,
+      name: nonEmptyString,
       description: nonEmptyString,
-      inputSchema: jsonSchemaSchema
+      allowed_operations: nonEmptyStringArray,
+      forbidden_operations: z.array(nonEmptyString),
+      requires_auth: z.boolean(),
+      risk_level: riskLevelSchema
     })
   ),
-  escalations: z.array(
+  routes: z.array(
     z.strictObject({
-      id: nonEmptyString,
-      when: nonEmptyString,
-      target: nonEmptyString
+      name: nonEmptyString,
+      description: nonEmptyString,
+      triggers: nonEmptyStringArray,
+      target: nonEmptyString,
+      priority: z.number().int().min(0)
+    })
+  ),
+  handoffs: z.array(
+    z.strictObject({
+      name: nonEmptyString,
+      condition: nonEmptyString,
+      destination: nonEmptyString,
+      required_context: z.array(nonEmptyString)
     })
   ),
   tests: z
     .array(
       z.strictObject({
-        id: nonEmptyString,
+        name: nonEmptyString,
         input: nonEmptyString,
-        expect: z.strictObject({
-          route: nonEmptyString.optional(),
-          escalation: nonEmptyString.optional(),
-          tools: z.array(nonEmptyString).optional()
-        })
+        expected_route: nonEmptyString.optional(),
+        expected_handoff: nonEmptyString.optional(),
+        expected_tool_calls: z.array(nonEmptyString),
+        forbidden_tool_calls: z.array(nonEmptyString),
+        assertions: z.array(nonEmptyString)
       })
     )
     .optional()
 });
 
-export const agentSpecJsonSchema = {
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  title: "AgentSpec",
-  type: "object",
-  required: ["agentspec", "metadata", "agent", "instructions", "routes", "tools", "escalations"],
-  additionalProperties: false,
-  properties: {
-    agentspec: { const: "1.0" },
-    metadata: {
-      type: "object",
-      required: ["name", "version"],
-      additionalProperties: false,
-      properties: {
-        name: { type: "string", minLength: 1 },
-        version: { type: "string", minLength: 1 },
-        description: { type: "string", minLength: 1 },
-        owners: { type: "array", items: { type: "string", minLength: 1 } }
-      }
-    },
-    agent: {
-      type: "object",
-      required: ["id", "description"],
-      additionalProperties: false,
-      properties: {
-        id: { type: "string", minLength: 1 },
-        description: { type: "string", minLength: 1 }
-      }
-    },
-    instructions: {
-      type: "object",
-      required: ["system", "goals", "constraints", "fallback"],
-      additionalProperties: false,
-      properties: {
-        system: { type: "string", minLength: 1 },
-        goals: { type: "array", items: { type: "string", minLength: 1 } },
-        constraints: { type: "array", items: { type: "string", minLength: 1 } },
-        fallback: { type: "string", minLength: 1 }
-      }
-    },
-    routes: {
-      type: "array",
-      items: {
-        type: "object",
-        required: ["id", "when", "instructions"],
-        additionalProperties: false,
-        properties: {
-          id: { type: "string", minLength: 1 },
-          when: { type: "string", minLength: 1 },
-          instructions: { type: "array", items: { type: "string", minLength: 1 } },
-          tools: { type: "array", items: { type: "string", minLength: 1 } },
-          escalateTo: { type: "string", minLength: 1 }
-        }
-      }
-    },
-    tools: {
-      type: "array",
-      items: {
-        type: "object",
-        required: ["id", "description", "inputSchema"],
-        additionalProperties: false,
-        properties: {
-          id: { type: "string", minLength: 1 },
-          description: { type: "string", minLength: 1 },
-          inputSchema: { type: "object" }
-        }
-      }
-    },
-    escalations: {
-      type: "array",
-      items: {
-        type: "object",
-        required: ["id", "when", "target"],
-        additionalProperties: false,
-        properties: {
-          id: { type: "string", minLength: 1 },
-          when: { type: "string", minLength: 1 },
-          target: { type: "string", minLength: 1 }
-        }
-      }
-    },
-    tests: {
-      type: "array",
-      items: {
-        type: "object",
-        required: ["id", "input", "expect"],
-        additionalProperties: false,
-        properties: {
-          id: { type: "string", minLength: 1 },
-          input: { type: "string", minLength: 1 },
-          expect: {
-            type: "object",
-            additionalProperties: false,
-            properties: {
-              route: { type: "string", minLength: 1 },
-              escalation: { type: "string", minLength: 1 },
-              tools: { type: "array", items: { type: "string", minLength: 1 } }
-            }
-          }
-        }
-      }
+type SchemaProperties = Record<string, JsonSchema>;
+
+const stringSchema = (): JsonSchema => ({ type: "string", minLength: 1 });
+const booleanSchema = (): JsonSchema => ({ type: "boolean" });
+const integerSchema = (minimum = 0): JsonSchema => ({ type: "integer", minimum });
+const stringArraySchema = (): JsonSchema => ({ type: "array", items: stringSchema() });
+const enumSchema = (values: string[]): JsonSchema => ({ type: "string", enum: values });
+
+function objectSchema(properties: SchemaProperties, required = Object.keys(properties)): JsonSchema {
+  return {
+    type: "object",
+    required,
+    additionalProperties: false,
+    properties
+  };
+}
+
+function arrayOf(item: JsonSchema): JsonSchema {
+  return {
+    type: "array",
+    items: item
+  };
+}
+
+export function generateAgentSpecJsonSchema(): JsonSchema {
+  return {
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    title: "AgentSpec",
+    type: "object",
+    required: ["agent", "persona", "instructions", "constraints", "tools", "routes", "handoffs"],
+    additionalProperties: false,
+    properties: {
+      agent: objectSchema({
+        name: stringSchema(),
+        description: stringSchema(),
+        version: stringSchema(),
+        owner: stringSchema(),
+        domain: stringSchema()
+      }),
+      persona: objectSchema({
+        role: stringSchema(),
+        tone: stringSchema(),
+        verbosity: stringSchema(),
+        style_rules: stringArraySchema()
+      }),
+      instructions: objectSchema({
+        primary_goal: stringSchema(),
+        secondary_goals: stringArraySchema(),
+        do: stringArraySchema(),
+        do_not: stringArraySchema()
+      }),
+      constraints: objectSchema({
+        safety: stringArraySchema(),
+        privacy: stringArraySchema(),
+        compliance: stringArraySchema(),
+        escalation: stringArraySchema(),
+        data_access: stringArraySchema()
+      }),
+      tools: arrayOf(
+        objectSchema({
+          name: stringSchema(),
+          description: stringSchema(),
+          allowed_operations: stringArraySchema(),
+          forbidden_operations: stringArraySchema(),
+          requires_auth: booleanSchema(),
+          risk_level: enumSchema(["low", "medium", "high", "critical"])
+        })
+      ),
+      routes: arrayOf(
+        objectSchema({
+          name: stringSchema(),
+          description: stringSchema(),
+          triggers: stringArraySchema(),
+          target: stringSchema(),
+          priority: integerSchema(0)
+        })
+      ),
+      handoffs: arrayOf(
+        objectSchema({
+          name: stringSchema(),
+          condition: stringSchema(),
+          destination: stringSchema(),
+          required_context: stringArraySchema()
+        })
+      ),
+      tests: arrayOf(
+        objectSchema(
+          {
+            name: stringSchema(),
+            input: stringSchema(),
+            expected_route: stringSchema(),
+            expected_handoff: stringSchema(),
+            expected_tool_calls: stringArraySchema(),
+            forbidden_tool_calls: stringArraySchema(),
+            assertions: stringArraySchema()
+          },
+          ["name", "input", "expected_tool_calls", "forbidden_tool_calls", "assertions"]
+        )
+      )
     }
-  }
-} as const;
+  };
+}
+
+export const agentSpecJsonSchema = generateAgentSpecJsonSchema();
 
 export function validateAgentSpec(input: unknown): AgentSpecValidationResult {
   const result = agentSpecSchema.safeParse(input);

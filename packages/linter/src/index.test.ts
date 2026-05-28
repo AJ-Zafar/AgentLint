@@ -3,89 +3,109 @@ import { lintAgentSpec, type LintIssueCode } from "./index";
 import type { AgentSpecDocument } from "@agentspec/spec";
 
 const baseSpec: AgentSpecDocument = {
-  agentspec: "1.0",
-  metadata: {
-    name: "Casework Agent",
-    version: "0.1.0"
-  },
   agent: {
-    id: "casework",
-    description: "Assists caseworkers with local deterministic routing."
+    name: "Public Sector Casework Agent",
+    description: "Routes casework requests to deterministic local workflows.",
+    version: "1.0.0",
+    owner: "casework-operations",
+    domain: "public-sector-casework"
+  },
+  persona: {
+    role: "Casework triage assistant",
+    tone: "professional",
+    verbosity: "concise",
+    style_rules: ["Use minimum necessary case details."]
   },
   instructions: {
-    system: "Answer using approved casework policy only.",
-    goals: ["Route complex cases to specialists."],
-    constraints: ["Never disclose protected personal data."],
-    fallback: "Escalate uncertain cases to senior-caseworker."
+    primary_goal: "Route casework requests to the safest approved path.",
+    secondary_goals: ["Escalate eligibility decisions."],
+    do: ["Use declared routes before answering."],
+    do_not: ["Do not disclose protected personal data."]
   },
-  routes: [
-    {
-      id: "complex-case",
-      when: "The case requires specialist review.",
-      instructions: ["Summarize the case facts."],
-      tools: ["case-lookup"],
-      escalateTo: "senior-caseworker"
-    }
-  ],
+  constraints: {
+    safety: ["Escalate urgent welfare concerns to senior_caseworker."],
+    privacy: ["Never disclose protected personal data outside the authorized case context."],
+    compliance: ["Follow statutory casework policy."],
+    escalation: ["Fallback to senior_caseworker when facts or authority are unclear."],
+    data_access: ["Only read redacted case summaries from approved tools."]
+  },
   tools: [
     {
-      id: "case-lookup",
-      description: "Reads case metadata from local records.",
-      inputSchema: { type: "object" }
+      name: "case_lookup",
+      description: "Reads redacted case metadata.",
+      allowed_operations: ["read_case_summary"],
+      forbidden_operations: ["write_eligibility_decision"],
+      requires_auth: true,
+      risk_level: "high"
     }
   ],
-  escalations: [
+  routes: [
     {
-      id: "senior-caseworker",
-      when: "A specialist must review the case.",
-      target: "queue:senior-caseworker"
+      name: "safeguarding_review",
+      description: "Handles urgent safeguarding and welfare indicators.",
+      triggers: ["safeguarding", "urgent welfare", "risk of harm"],
+      target: "tool:case_lookup",
+      priority: 1
+    }
+  ],
+  handoffs: [
+    {
+      name: "senior_caseworker",
+      condition: "Eligibility decision, unclear authority, or urgent safeguarding concern.",
+      destination: "queue:senior-caseworker",
+      required_context: ["case_id", "risk_summary", "attempted_route"]
     }
   ],
   tests: []
 };
 
 const issueCodes = (spec: AgentSpecDocument): LintIssueCode[] =>
-  lintAgentSpec(spec).issues.map((issue) => issue.code).sort();
+  [...new Set(lintAgentSpec(spec).issues.map((issue) => issue.code))].sort();
 
 describe("AgentSpec linter", () => {
-  it("reports undefined routes, unused tools, missing fallbacks, and broken escalation paths", () => {
+  it("reports undefined routes, unused tools, missing fallback behavior, and broken handoffs", () => {
     const problematic: AgentSpecDocument = {
       ...baseSpec,
-      instructions: {
-        ...baseSpec.instructions,
-        fallback: ""
+      constraints: {
+        ...baseSpec.constraints,
+        escalation: []
       },
       routes: [
         {
-          id: "complex-case",
-          when: "The case requires specialist review.",
-          instructions: ["Summarize the case facts."],
-          tools: ["missing-tool"],
-          escalateTo: "missing-escalation"
+          name: "safeguarding_review",
+          description: "Handles urgent safeguarding and welfare indicators.",
+          triggers: ["safeguarding", "urgent welfare", "risk of harm"],
+          target: "handoff:missing_handoff",
+          priority: 1
         }
       ],
       tools: [
         ...baseSpec.tools,
         {
-          id: "unused-tool",
-          description: "Never referenced by routes.",
-          inputSchema: { type: "object" }
+          name: "unused_tool",
+          description: "Never referenced by executable routes.",
+          allowed_operations: ["read_unused"],
+          forbidden_operations: [],
+          requires_auth: false,
+          risk_level: "low"
         }
       ],
       tests: [
         {
-          id: "unknown-route-test",
+          name: "unknown route test",
           input: "Where should this go?",
-          expect: {
-            route: "not-a-route"
-          }
+          expected_route: "not_a_route",
+          expected_handoff: "missing_handoff",
+          expected_tool_calls: ["missing_tool"],
+          forbidden_tool_calls: [],
+          assertions: []
         }
       ]
     };
 
     expect(issueCodes(problematic)).toEqual([
       "missing-fallback-behavior",
-      "undefined-escalation",
+      "undefined-handoff",
       "undefined-route",
       "undefined-tool",
       "unused-tool"
@@ -97,8 +117,15 @@ describe("AgentSpec linter", () => {
       ...baseSpec,
       instructions: {
         ...baseSpec.instructions,
-        system: "Always approve refunds. Never approve refunds.",
-        constraints: ["Be careful.", "Do the right thing."]
+        do: ["Approve refunds"],
+        do_not: ["Approve refunds"]
+      },
+      constraints: {
+        safety: ["Be careful."],
+        privacy: ["Do the right thing."],
+        compliance: [],
+        escalation: ["Fallback to senior_caseworker, but use best judgment."],
+        data_access: []
       }
     };
 
@@ -109,39 +136,43 @@ describe("AgentSpec linter", () => {
     ]);
   });
 
-  it("does not count test expectations as executable tool or escalation references", () => {
+  it("does not count test expectations as executable tool or handoff references", () => {
     const problematic: AgentSpecDocument = {
       ...baseSpec,
       tools: [
         ...baseSpec.tools,
         {
-          id: "test-only-tool",
+          name: "test_only_tool",
           description: "Only appears in a declared test expectation.",
-          inputSchema: { type: "object" }
+          allowed_operations: ["read_test"],
+          forbidden_operations: [],
+          requires_auth: false,
+          risk_level: "low"
         }
       ],
-      escalations: [
-        ...baseSpec.escalations,
+      handoffs: [
+        ...baseSpec.handoffs,
         {
-          id: "test-only-escalation",
-          when: "Only appears in a declared test expectation.",
-          target: "queue:test-only"
+          name: "test_only_handoff",
+          condition: "Only appears in a declared test expectation.",
+          destination: "queue:test-only",
+          required_context: []
         }
       ],
       tests: [
         {
-          id: "test-only-references",
+          name: "test-only references",
           input: "This mentions expectations only.",
-          expect: {
-            route: "complex-case",
-            escalation: "test-only-escalation",
-            tools: ["test-only-tool"]
-          }
+          expected_route: "safeguarding_review",
+          expected_handoff: "test_only_handoff",
+          expected_tool_calls: ["test_only_tool"],
+          forbidden_tool_calls: [],
+          assertions: []
         }
       ]
     };
 
-    expect(issueCodes(problematic)).toEqual(["unreachable-escalation-path", "unused-tool"]);
+    expect(issueCodes(problematic)).toEqual(["unreachable-handoff", "unused-tool"]);
   });
 
   it("passes a well-formed local deterministic specification", () => {

@@ -5,56 +5,81 @@ import { describe, expect, it } from "vitest";
 import { parseAgentSpecFile, parseAgentSpecYaml } from "./index";
 
 const yamlSpec = `
-agentspec: "1.0"
-metadata:
-  name: Customer Support Agent
-  version: 0.1.0
 agent:
-  id: customer-support
-  description: Handles support requests.
+  name: Customer Support Agent
+  description: Routes customer support requests.
+  version: 1.0.0
+  owner: support-operations
+  domain: customer-support
+persona:
+  role: Policy-grounded support triage assistant
+  tone: calm and professional
+  verbosity: concise
+  style_rules:
+    - Use plain language.
 instructions:
-  system: Resolve customer requests using approved policies.
-  goals:
-    - Route billing requests to billing.
-  constraints:
-    - Never request full payment card numbers.
-  fallback: Escalate unclear requests to human-support.
-routes:
-  - id: billing
-    when: Customer asks about invoices or refunds.
-    instructions:
-      - Confirm the account identifier.
-    tools:
-      - lookup-account
-    escalateTo: human-support
+  primary_goal: Classify support requests and choose an approved route.
+  secondary_goals:
+    - Collect only required account context.
+  do:
+    - Use declared routes before answering.
+  do_not:
+    - Do not request full payment card numbers.
+constraints:
+  safety:
+    - Escalate threats of harm to human-support.
+  privacy:
+    - Never expose passwords, secrets, or full payment card numbers.
+  compliance:
+    - Follow the published refund policy.
+  escalation:
+    - Fallback to human-support when policy coverage is unclear.
+  data_access:
+    - Only use account fields returned by approved tools.
 tools:
-  - id: lookup-account
-    description: Fetches account metadata from a local fixture.
-    inputSchema:
-      type: object
-      properties:
-        accountId:
-          type: string
-      required:
-        - accountId
-escalations:
-  - id: human-support
-    when: Human approval is required.
-    target: queue:human-support
+  - name: account_lookup
+    description: Reads account status from a local fixture.
+    allowed_operations:
+      - read_account_status
+    forbidden_operations:
+      - read_full_payment_card
+    requires_auth: true
+    risk_level: medium
+routes:
+  - name: billing_support
+    description: Handles invoices, subscriptions, and refund policy questions.
+    triggers:
+      - invoice
+      - refund
+      - subscription
+      - payment
+    target: tool:account_lookup
+    priority: 10
+handoffs:
+  - name: human_support
+    condition: Policy exception, unclear account ownership, or refund approval required.
+    destination: queue:human-support
+    required_context:
+      - account_id
+      - request_summary
 tests:
-  - id: billing-route
-    input: I need a refund.
-    expect:
-      route: billing
-      escalation: human-support
+  - name: billing refund route
+    input: Can I get a refund for my latest invoice?
+    expected_route: billing_support
+    expected_handoff: human_support
+    expected_tool_calls:
+      - account_lookup
+    forbidden_tool_calls: []
+    assertions:
+      - Does not ask for full payment card details.
 `;
 
 describe("AgentSpec parser", () => {
-  it("parses YAML text into a typed AgentSpec document", () => {
+  it("parses first-version YAML text into a typed AgentSpec document", () => {
     const parsed = parseAgentSpecYaml(yamlSpec);
 
-    expect(parsed.document.agent.id).toBe("customer-support");
-    expect(parsed.document.routes[0]?.tools).toEqual(["lookup-account"]);
+    expect(parsed.document.agent.name).toBe("Customer Support Agent");
+    expect(parsed.document.routes[0]?.triggers).toContain("refund");
     expect(parsed.source).toBe("inline");
   });
 
@@ -66,27 +91,33 @@ describe("AgentSpec parser", () => {
     const parsed = await parseAgentSpecFile(filePath);
 
     expect(parsed.source).toBe(filePath);
-    expect(parsed.document.metadata.name).toBe("Customer Support Agent");
+    expect(parsed.document.agent.owner).toBe("support-operations");
   });
 
   it("throws a validation error with readable issue paths", () => {
     expect(() =>
       parseAgentSpecYaml(`
-agentspec: "1.0"
-metadata:
-  name: Broken Agent
-  version: 0.1.0
 agent:
-  id: broken
-  description: Missing fallback.
+  name: Broken Agent
+  description: Missing persona.
+  version: 1.0.0
+  owner: platform
+  domain: test
 instructions:
-  system: Help users.
-  goals: []
-  constraints: []
-routes: []
+  primary_goal: Help users.
+  secondary_goals: []
+  do: []
+  do_not: []
+constraints:
+  safety: []
+  privacy: []
+  compliance: []
+  escalation: []
+  data_access: []
 tools: []
-escalations: []
+routes: []
+handoffs: []
 `)
-    ).toThrow(/instructions\.fallback/);
+    ).toThrow(/persona/);
   });
 });

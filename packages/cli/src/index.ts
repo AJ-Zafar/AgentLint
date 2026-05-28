@@ -136,46 +136,60 @@ type DeclaredTestResult = {
   failures: DeclaredTestFailure[];
 };
 
+type SimulationResult = {
+  route?: AgentSpecDocument["routes"][number];
+  handoff?: AgentSpecDocument["handoffs"][number];
+  toolCalls: string[];
+};
+
 export function runDeclaredTests(spec: AgentSpecDocument): DeclaredTestResult {
-  const routeIds = new Set(spec.routes.map((route) => route.id));
-  const escalationIds = new Set(spec.escalations.map((escalation) => escalation.id));
-  const toolIds = new Set(spec.tools.map((tool) => tool.id));
+  const routeNames = new Set(spec.routes.map((route) => route.name));
+  const handoffNames = new Set(spec.handoffs.map((handoff) => handoff.name));
+  const toolNames = new Set(spec.tools.map((tool) => tool.name));
   const failures: DeclaredTestFailure[] = [];
 
   for (const test of spec.tests ?? []) {
     const messages: string[] = [];
-    const simulatedRoute = simulateRoute(spec, test.input);
-    const simulatedRouteId = simulatedRoute?.id ?? "none";
+    const simulation = simulateAgentSpec(spec, test.input);
+    const simulatedRouteName = simulation.route?.name ?? "none";
+    const simulatedHandoffName = simulation.handoff?.name ?? "none";
+    const simulatedToolCalls = new Set(simulation.toolCalls);
 
-    if (test.expect.route) {
-      if (!routeIds.has(test.expect.route)) {
-        messages.push(`expected route "${test.expect.route}" is not defined`);
-      } else if (simulatedRoute?.id !== test.expect.route) {
-        messages.push(`expected route "${test.expect.route}" but simulated "${simulatedRouteId}"`);
+    if (test.expected_route) {
+      if (!routeNames.has(test.expected_route)) {
+        messages.push(`expected route "${test.expected_route}" is not defined`);
+      } else if (simulation.route?.name !== test.expected_route) {
+        messages.push(`expected route "${test.expected_route}" but simulated "${simulatedRouteName}"`);
       }
     }
 
-    if (test.expect.escalation) {
-      const simulatedEscalation = simulatedRoute?.escalateTo ?? "none";
-      if (!escalationIds.has(test.expect.escalation)) {
-        messages.push(`expected escalation "${test.expect.escalation}" is not defined`);
-      } else if (simulatedRoute?.escalateTo !== test.expect.escalation) {
-        messages.push(`expected escalation "${test.expect.escalation}" but simulated "${simulatedEscalation}"`);
+    if (test.expected_handoff) {
+      if (!handoffNames.has(test.expected_handoff)) {
+        messages.push(`expected handoff "${test.expected_handoff}" is not defined`);
+      } else if (simulation.handoff?.name !== test.expected_handoff) {
+        messages.push(`expected handoff "${test.expected_handoff}" but simulated "${simulatedHandoffName}"`);
       }
     }
 
-    const simulatedTools = new Set(simulatedRoute?.tools ?? []);
-    for (const toolId of test.expect.tools ?? []) {
-      if (!toolIds.has(toolId)) {
-        messages.push(`expected tool "${toolId}" is not defined`);
-      } else if (!simulatedTools.has(toolId)) {
-        messages.push(`expected tool "${toolId}" but simulated route "${simulatedRouteId}" does not use it`);
+    for (const toolName of test.expected_tool_calls) {
+      if (!toolNames.has(toolName)) {
+        messages.push(`expected tool "${toolName}" is not defined`);
+      } else if (!simulatedToolCalls.has(toolName)) {
+        messages.push(`expected tool "${toolName}" but simulated calls were ${formatList(simulation.toolCalls)}`);
+      }
+    }
+
+    for (const toolName of test.forbidden_tool_calls) {
+      if (!toolNames.has(toolName)) {
+        messages.push(`forbidden tool "${toolName}" is not defined`);
+      } else if (simulatedToolCalls.has(toolName)) {
+        messages.push(`forbidden tool "${toolName}" was simulated`);
       }
     }
 
     if (messages.length > 0) {
       failures.push({
-        id: test.id,
+        id: test.name,
         message: messages.join("; ")
       });
     }
@@ -189,13 +203,25 @@ export function runDeclaredTests(spec: AgentSpecDocument): DeclaredTestResult {
   };
 }
 
+function simulateAgentSpec(spec: AgentSpecDocument, input: string): SimulationResult {
+  const route = simulateRoute(spec, input);
+  const target = route ? parseTarget(route.target) : undefined;
+  const targetTool = target?.kind === "tool" ? spec.tools.find((tool) => tool.name === target.name) : undefined;
+  const targetHandoff = target?.kind === "handoff" ? spec.handoffs.find((handoff) => handoff.name === target.name) : undefined;
+  const handoff = targetHandoff ?? simulateHandoff(spec, input, route);
+  const toolCalls = targetTool ? [targetTool.name] : [];
+
+  return { route, handoff, toolCalls };
+}
+
 function simulateRoute(spec: AgentSpecDocument, input: string): AgentSpecDocument["routes"][number] | undefined {
   const inputTokens = tokenize(input);
+  const rankedRoutes = [...spec.routes].sort((a, b) => a.priority - b.priority);
   let bestRoute: AgentSpecDocument["routes"][number] | undefined;
   let bestScore = 0;
 
-  for (const route of spec.routes) {
-    const routeTokens = tokenize(`${route.id} ${route.when}`);
+  for (const route of rankedRoutes) {
+    const routeTokens = tokenize(`${route.name} ${route.description} ${route.triggers.join(" ")}`);
     const score = [...inputTokens].filter((token) => routeTokens.has(token)).length;
 
     if (score > bestScore) {
@@ -207,6 +233,39 @@ function simulateRoute(spec: AgentSpecDocument, input: string): AgentSpecDocumen
   return bestScore > 0 ? bestRoute : undefined;
 }
 
+function simulateHandoff(
+  spec: AgentSpecDocument,
+  input: string,
+  route?: AgentSpecDocument["routes"][number]
+): AgentSpecDocument["handoffs"][number] | undefined {
+  const inputTokens = tokenize(`${input} ${route?.description ?? ""} ${route?.triggers.join(" ") ?? ""}`);
+  let bestHandoff: AgentSpecDocument["handoffs"][number] | undefined;
+  let bestScore = 0;
+
+  for (const handoff of spec.handoffs) {
+    const handoffTokens = tokenize(`${handoff.name} ${handoff.condition}`);
+    const score = [...inputTokens].filter((token) => handoffTokens.has(token)).length;
+
+    if (score > bestScore) {
+      bestHandoff = handoff;
+      bestScore = score;
+    }
+  }
+
+  return bestScore > 0 ? bestHandoff : undefined;
+}
+
+function parseTarget(target: string): { kind: "tool" | "handoff"; name: string } | undefined {
+  const [kind, ...rest] = target.split(":");
+  const name = rest.join(":").trim();
+
+  if ((kind === "tool" || kind === "handoff") && name.length > 0) {
+    return { kind, name };
+  }
+
+  return undefined;
+}
+
 function tokenize(value: string): Set<string> {
   const stopWords = new Set([
     "a",
@@ -216,10 +275,11 @@ function tokenize(value: string): Set<string> {
     "are",
     "asks",
     "can",
-    "customer",
+    "for",
     "i",
     "is",
-    "need",
+    "latest",
+    "my",
     "of",
     "or",
     "the",
@@ -234,6 +294,10 @@ function tokenize(value: string): Set<string> {
       .map((token) => token.replace(/s$/, ""))
       .filter((token) => token.length > 2 && !stopWords.has(token))
   );
+}
+
+function formatList(values: string[]): string {
+  return values.length === 0 ? "none" : values.join(", ");
 }
 
 type DiffChange = {

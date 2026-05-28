@@ -24,14 +24,76 @@ pnpm agentspec test examples/customer-support.agentspec.yaml
 pnpm agentspec diff examples/customer-support.agentspec.yaml examples/copilot-studio-agent.agentspec.yaml
 ```
 
-## AgentSpec shape
+## AgentSpec v1 YAML shape
 
-AgentSpec files use YAML and currently target schema version `1.0`:
+AgentSpec files use YAML and this first format version is organized around explicit instruction-engineering sections:
 
-- `metadata` describes the spec.
-- `agent` identifies the agent being specified.
-- `instructions` contains system behavior, goals, constraints, and fallback behavior.
-- `routes` define deterministic routing paths.
-- `tools` define local tool contracts.
-- `escalations` define human or workflow handoff targets.
-- `tests` declare deterministic expectations checked locally by the CLI.
+```yaml
+agent:
+  name: Customer Support Triage Agent
+  description: Routes customer questions to deterministic workflows.
+  version: 1.0.0
+  owner: support-operations
+  domain: customer-support
+persona:
+  role: Policy-grounded support triage assistant
+  tone: calm and professional
+  verbosity: concise
+  style_rules:
+    - Use plain language.
+instructions:
+  primary_goal: Classify requests and choose the safest approved route.
+  secondary_goals:
+    - Collect only required context.
+  do:
+    - Use declared routes before answering.
+  do_not:
+    - Do not request secrets or full payment card numbers.
+constraints:
+  safety:
+    - Escalate threats of harm to a human handoff.
+  privacy:
+    - Never expose protected personal data.
+  compliance:
+    - Follow published policy.
+  escalation:
+    - Fallback to a named handoff when policy coverage is unclear.
+  data_access:
+    - Only use fields returned by approved tools.
+tools:
+  - name: account_lookup
+    description: Reads account status from local fixtures.
+    allowed_operations:
+      - read_account_status
+    forbidden_operations:
+      - read_full_payment_card
+    requires_auth: true
+    risk_level: medium
+routes:
+  - name: billing_support
+    description: Handles invoice and refund questions.
+    triggers:
+      - invoice
+      - refund
+    target: tool:account_lookup
+    priority: 10
+handoffs:
+  - name: human_support
+    condition: Refund approval or unclear ownership requires human review.
+    destination: queue:human-support
+    required_context:
+      - account_id
+      - request_summary
+tests:
+  - name: billing refund route
+    input: Can I get a refund for my latest invoice?
+    expected_route: billing_support
+    expected_handoff: human_support
+    expected_tool_calls:
+      - account_lookup
+    forbidden_tool_calls: []
+    assertions:
+      - Does not ask for full payment card details.
+```
+
+`@agentspec/spec` exports TypeScript types, strict Zod validation, `generateAgentSpecJsonSchema()`, and a generated `agentSpecJsonSchema` constant for editor and CLI consumers.
