@@ -37,6 +37,20 @@ AgentSpec currently includes:
 
 Everything is local-first. No Microsoft APIs, model APIs or external services are called by the core tooling.
 
+## Documentation site
+
+This repository includes a VitePress documentation site under `docs/`. Run it locally with:
+
+```bash
+pnpm docs:dev
+```
+
+Build the static site with:
+
+```bash
+pnpm docs:build
+```
+
 ## Installation and quick start
 
 This repository uses pnpm workspaces.
