@@ -240,7 +240,7 @@ pnpm agentlint graph ./file.agentspec.yaml
 pnpm agentlint graph ./file.agentspec.yaml --json
 ```
 
-Compiles a spec into an internal behaviour graph, including route conditions, route dependencies, targets and precedence. The grammar layer validates invalid operators, circular dependencies, unreachable branches and conflicting precedence definitions.
+Compiles a spec into an internal directed behaviour graph, including route conditions, decisions, tools, constraints, handoffs, fallback paths, terminal responses, dependencies, targets and precedence. The grammar layer validates invalid operators, circular dependencies, dead-end states, unreachable nodes, isolated routes, unreachable branches and conflicting precedence definitions. Use `--mermaid` to generate a Mermaid behaviour graph for documentation.
 
 ### Copilot Studio plan
 

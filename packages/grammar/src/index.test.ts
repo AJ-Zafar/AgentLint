@@ -45,16 +45,18 @@ describe("formal grammar and behaviour graph compilation", () => {
     expect(result.diagnostics).toEqual([]);
     expect(result.graph.precedence).toEqual(["small_refund", "fallback_human_review"]);
     expect(result.graph.nodes).toEqual(expect.arrayContaining([
-      { id: "start", kind: "start", label: "Start" },
+      { id: "decision:small_refund", kind: "decision", label: "small_refund decision" },
       { id: "route:small_refund", kind: "route", label: "small_refund" },
       { id: "tool:refund_lookup", kind: "tool", label: "refund_lookup" },
-      { id: "handoff:human_review", kind: "handoff", label: "human_review" }
+      { id: "handoff:human_review", kind: "handoff", label: "human_review" },
+      { id: "terminal:small_refund", kind: "terminal_response", label: "small_refund response" }
     ]));
     expect(result.graph.edges).toEqual(expect.arrayContaining([
-      { from: "start", to: "route:small_refund", label: "intent == refund AND authenticated == true AND amount < 50" },
-      { from: "route:small_refund", to: "tool:refund_lookup", label: "target" },
-      { from: "route:fallback_human_review", to: "handoff:human_review", label: "target" },
-      { from: "route:small_refund", to: "route:fallback_human_review", label: "depends_on" }
+      { from: "decision:small_refund", to: "route:small_refund", kind: "conditional_transition", label: "intent == refund AND authenticated == true AND amount < 50" },
+      { from: "route:small_refund", to: "tool:refund_lookup", kind: "tool_invocation_path", label: "invoke" },
+      { from: "route:fallback_human_review", to: "handoff:human_review", kind: "escalation_path", label: "handoff" },
+      { from: "route:small_refund", to: "route:fallback_human_review", kind: "precedence_branch", label: "depends_on" },
+      { from: "tool:refund_lookup", to: "terminal:small_refund", kind: "terminal_transition", label: "respond" }
     ]));
   });
 
@@ -104,4 +106,40 @@ describe("formal grammar and behaviour graph compilation", () => {
       expect.objectContaining({ code: "conflicting-precedence" })
     ]));
   });
+
+  it("detects dead-end states for invalid route targets", () => {
+    const spec: AgentSpecDocument = {
+      ...baseSpec,
+      routes: [{ ...baseSpec.routes[0], target: "unknown:missing" }, baseSpec.routes[1]]
+    };
+
+    expect(compileAgentSpecGraph(spec).diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "dead-end-state", path: "routes.0.target" })
+    ]));
+  });
+
+  it("detects unreachable tool and handoff nodes", () => {
+    const spec: AgentSpecDocument = {
+      ...baseSpec,
+      tools: [...baseSpec.tools, { name: "unused_tool", description: "Unused.", allowed_operations: ["read"], forbidden_operations: [], requires_auth: false, risk_level: "low" }],
+      handoffs: [...baseSpec.handoffs, { name: "unused_handoff", condition: "Never used.", destination: "queue:unused", required_context: [] }]
+    };
+
+    expect(compileAgentSpecGraph(spec).diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "unreachable-node", message: 'Tool "unused_tool" is not reachable from any route.' }),
+      expect.objectContaining({ code: "unreachable-node", message: 'Handoff "unused_handoff" is not reachable from any route.' })
+    ]));
+  });
+
+  it("detects isolated routes with no triggers or conditions", () => {
+    const spec: AgentSpecDocument = {
+      ...baseSpec,
+      routes: [{ ...baseSpec.routes[0], triggers: [], conditions: undefined }, baseSpec.routes[1]]
+    };
+
+    expect(compileAgentSpecGraph(spec).diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "isolated-route", path: "routes.0" })
+    ]));
+  });
+
 });

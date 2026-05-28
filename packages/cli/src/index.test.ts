@@ -216,8 +216,24 @@ describe("agentspec CLI", () => {
     expect(result.exitCode).toBe(0);
     expect(parsed.command).toBe("graph");
     expect(parsed.file).toBe(filePath);
-    expect(parsed.diagnostics).toEqual([]);
+    expect(parsed.diagnostics.every((diagnostic: { severity: string }) => diagnostic.severity !== "error")).toBe(true);
     expect(parsed.graph.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ id: "route:billing_support" })]));
+  });
+
+
+
+  it("prints Mermaid and ASCII behaviour graph formats", async () => {
+    const filePath = await writeFixture("graph-formats.agentspec.yaml", validYaml);
+
+    const mermaid = await runCli(["graph", filePath, "--mermaid"], "agentlint");
+    const ascii = await runCli(["graph", filePath, "--ascii"], "agentlint");
+
+    expect(mermaid.exitCode).toBe(0);
+    expect(mermaid.stdout).toContain("flowchart LR");
+    expect(mermaid.stdout).toContain("route_billing_support");
+    expect(ascii.exitCode).toBe(0);
+    expect(ascii.stdout).toContain("Agent Lint Behaviour Graph");
+    expect(ascii.stdout).toContain("conditional_transition");
   });
 
   it("generates a Copilot Studio implementation plan", async () => {

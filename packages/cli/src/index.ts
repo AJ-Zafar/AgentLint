@@ -99,8 +99,10 @@ export function createCli(state: CliState, programName = "agentspec"): Command {
     .command("graph")
     .argument("<file>", "Agent Lint YAML file")
     .option("--json", "Emit machine-readable JSON output")
+    .option("--mermaid", "Emit Mermaid flowchart output")
+    .option("--ascii", "Emit ASCII graph output")
     .description("Compile an Agent Lint spec into an internal behaviour graph.")
-    .action(async (file: string, options: { json?: boolean }) => {
+    .action(async (file: string, options: { json?: boolean; mermaid?: boolean; ascii?: boolean }) => {
       const parsed = await parseForCommand(file, state, "graph", options.json);
       if (!parsed) {
         return;
@@ -108,7 +110,8 @@ export function createCli(state: CliState, programName = "agentspec"): Command {
 
       const result = compileAgentSpecGraph(parsed.document);
       const payload = { command: "graph", file, graph: result.graph, diagnostics: result.diagnostics };
-      state.stdout.push(options.json ? jsonLine(payload) : formatGraph(result));
+      const output = options.json ? jsonLine(payload) : options.mermaid ? formatGraphMermaid(result) : formatGraph(result);
+      state.stdout.push(output);
       if (result.diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
         state.exitCode = 1;
       }
@@ -314,7 +317,7 @@ function formatGraph(result: GraphCompilationResult): string {
     ...result.graph.nodes.map((node) => `  - ${node.id} (${node.kind})`),
     "",
     "Edges",
-    ...result.graph.edges.map((edge) => `  - ${edge.from} -> ${edge.to}${edge.label ? ` [${edge.label}]` : ""}`),
+    ...result.graph.edges.map((edge) => `  - ${edge.from} -> ${edge.to} <${edge.kind}>${edge.label ? ` [${edge.label}]` : ""}`),
     ""
   ];
 
@@ -323,6 +326,32 @@ function formatGraph(result: GraphCompilationResult): string {
   }
 
   return `${lines.join("\n").trimEnd()}\n`;
+}
+
+function formatGraphMermaid(result: GraphCompilationResult): string {
+  const lines = ["flowchart LR"];
+  for (const node of result.graph.nodes) {
+    lines.push(`  ${mermaidId(node.id)}["${escapeMermaidLabel(`${node.label}\n(${node.kind})`)}"]`);
+  }
+  for (const edge of result.graph.edges) {
+    const label = edge.label ? `|${escapeMermaidLabel(edge.label)}|` : "";
+    lines.push(`  ${mermaidId(edge.from)} -->${label} ${mermaidId(edge.to)}`);
+  }
+  if (result.diagnostics.length > 0) {
+    lines.push("  %% Diagnostics");
+    for (const diagnostic of result.diagnostics) {
+      lines.push(`  %% ${diagnostic.severity} ${diagnostic.code} ${diagnostic.path}: ${diagnostic.message}`);
+    }
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+function mermaidId(value: string): string {
+  return value.replace(/[^A-Za-z0-9_]/g, "_");
+}
+
+function escapeMermaidLabel(value: string): string {
+  return value.replace(/"/g, "'");
 }
 
 function formatCopilotAudit(report: CopilotStudioAuditReport): string {
