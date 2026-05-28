@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import Editor from "@monaco-editor/react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+const Editor = lazy(() => import("@monaco-editor/react"));
 import { parseAgentSpecYaml, AgentSpecParseError } from "@agentspec/parser";
 import { lintAgentSpec } from "@agentspec/linter";
 import type { LintIssue } from "@agentspec/linter";
@@ -89,22 +89,24 @@ export function YamlWorkspace() {
             )}
           </div>
           <div className="editor-wrapper" style={{ height: 560 }}>
-            <Editor
-              height="100%"
-              defaultLanguage="yaml"
-              value={yaml}
-              onChange={(value) => setYaml(value ?? "")}
-              theme="vs-light"
-              options={{
-                minimap: { enabled: false },
-                fontSize: 13,
-                lineNumbers: "on",
-                scrollBeyondLastLine: false,
-                wordWrap: "on",
-                tabSize: 2,
-                automaticLayout: true,
-              }}
-            />
+            <Suspense fallback={<div className="empty-state"><p>Loading editor...</p></div>}>
+              <Editor
+                height="100%"
+                defaultLanguage="yaml"
+                value={yaml}
+                onChange={(value) => setYaml(value ?? "")}
+                theme="vs-light"
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 13,
+                  lineNumbers: "on",
+                  scrollBeyondLastLine: false,
+                  wordWrap: "on",
+                  tabSize: 2,
+                  automaticLayout: true,
+                }}
+              />
+            </Suspense>
           </div>
         </div>
 

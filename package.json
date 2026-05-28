@@ -18,7 +18,10 @@
     "lint": "pnpm build && pnpm lint:examples",
     "docs:linter-rules": "pnpm build && node scripts/generate-linter-rule-docs.mjs",
     "test:examples": "sh -c 'set -e; for file in examples/*.agentspec.yaml; do case \"$file\" in *.bad.agentspec.yaml) continue;; esac; pnpm agentspec test \"$file\"; done'",
-    "agentlint": "node packages/cli/dist/bin/agentspec.js"
+    "agentlint": "node packages/cli/dist/bin/agentspec.js",
+    "web:dev": "pnpm --filter @agentspec/web dev",
+    "web:build": "pnpm --filter @agentspec/web build",
+    "web:preview": "pnpm --filter @agentspec/web preview"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

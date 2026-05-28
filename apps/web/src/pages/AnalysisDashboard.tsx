@@ -3,7 +3,7 @@ import { parseAgentSpecYaml, AgentSpecParseError } from "@agentspec/parser";
 import { lintAgentSpec } from "@agentspec/linter";
 import type { LintIssue } from "@agentspec/linter";
 import { runAgentSpecTests } from "@agentspec/test-runner";
-import type { TestRunResult } from "@agentspec/test-runner";
+import type { TestRunResult, TestCaseResult, TestFailure } from "@agentspec/test-runner";
 import { analyseBehaviouralCoverage } from "@agentspec/coverage";
 import type { BehaviouralCoverageReport } from "@agentspec/coverage";
 import { compileAgentSpecGraph } from "@agentspec/grammar";
@@ -11,7 +11,7 @@ import type { GraphCompilationResult } from "@agentspec/grammar";
 import { replayScenario, renderReplayMermaid } from "@agentspec/replay";
 import type { ReplayResult } from "@agentspec/replay";
 import { diffAgentSpecs } from "@agentspec/diff";
-import type { BehavioralDiffResult } from "@agentspec/diff";
+import type { BehavioralDiffResult, BehavioralChange } from "@agentspec/diff";
 import { generateGovernanceMarkdownReport } from "@agentspec/report";
 import type { AgentSpecDocument } from "@agentspec/spec";
 import { FindingCard } from "../components/FindingCard";
@@ -265,7 +265,7 @@ function TestTab({ result }: { result: TestRunResult | null }) {
           </tr>
         </thead>
         <tbody>
-          {result.results.map((r, i) => (
+          {result.tests.map((r: TestCaseResult, i: number) => (
             <tr key={i}>
               <td style={{ fontWeight: 500 }}>{r.name}</td>
               <td>
@@ -274,7 +274,7 @@ function TestTab({ result }: { result: TestRunResult | null }) {
                 </span>
               </td>
               <td style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)" }}>
-                {r.failures.length > 0 ? r.failures.map((f) => f.message).join("; ") : "All assertions passed."}
+                {r.failures.length > 0 ? r.failures.map((f: TestFailure) => f.reason).join("; ") : "All assertions passed."}
               </td>
             </tr>
           ))}
@@ -406,7 +406,7 @@ function CoverageTab({ result }: { result: BehaviouralCoverageReport | null }) {
   return (
     <div>
       <div className="stat-grid mb-4">
-        <StatCard label="Overall Coverage" value={`${result.overallPercentage}%`} color={result.overallPercentage >= 80 ? "var(--color-success)" : result.overallPercentage >= 50 ? "var(--color-warning)" : "var(--color-error)"} />
+        <StatCard label="Overall Coverage" value={`${result.overall}%`} color={result.overall >= 80 ? "var(--color-success)" : result.overall >= 50 ? "var(--color-warning)" : "var(--color-error)"} />
       </div>
       <table className="results-table mb-4">
         <thead><tr><th>Category</th><th>Covered</th><th>Total</th><th>Percentage</th><th>Uncovered</th></tr></thead>
@@ -417,17 +417,30 @@ function CoverageTab({ result }: { result: BehaviouralCoverageReport | null }) {
               <td>{m.covered}</td>
               <td>{m.total}</td>
               <td><span className={m.percentage >= 80 ? "text-success" : m.percentage >= 50 ? "text-warning" : "text-error"}>{m.percentage}%</span></td>
-              <td className="mono" style={{ fontSize: "0.8125rem" }}>{m.uncovered.join(", ") || "—"}</td>
+              <td className="mono" style={{ fontSize: "0.8125rem" }}>{m.uncovered.join(", ") || "\u2014"}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      {result.recommendations.length > 0 && (
+      {result.uncoveredBranches.length > 0 && (
         <div>
-          <h3 style={{ fontSize: "0.95rem", fontWeight: 600, marginBottom: 8 }}>Recommendations</h3>
+          <h3 style={{ fontSize: "0.95rem", fontWeight: 600, marginBottom: 8 }}>Uncovered branches</h3>
           <ul style={{ fontSize: "0.875rem", paddingLeft: 20, color: "var(--color-text-secondary)" }}>
-            {result.recommendations.map((r, i) => <li key={i} style={{ marginBottom: 4 }}>{r}</li>)}
+            {result.uncoveredBranches.map((r: string, i: number) => <li key={i} style={{ marginBottom: 4 }}>{r}</li>)}
           </ul>
+        </div>
+      )}
+      {result.recommendedTestScenarios.length > 0 && (
+        <div className="mt-4">
+          <h3 style={{ fontSize: "0.95rem", fontWeight: 600, marginBottom: 8 }}>Recommended test scenarios</h3>
+          <table className="results-table">
+            <thead><tr><th>Scenario</th><th>Reason</th></tr></thead>
+            <tbody>
+              {result.recommendedTestScenarios.map((s: { name: string; reason: string }, i: number) => (
+                <tr key={i}><td>{s.name}</td><td style={{ fontSize: "0.8125rem" }}>{s.reason}</td></tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
@@ -439,24 +452,21 @@ function DiffTab({ result }: { result: BehavioralDiffResult | null }) {
   return (
     <div>
       <div className="stat-grid mb-4">
-        <StatCard label="Impact" value={result.impactLevel} color={result.impactLevel === "breaking" ? "var(--color-error)" : result.impactLevel === "high" ? "var(--color-warning)" : "var(--color-success)"} />
+        <StatCard label="Impact" value={result.impact} color={result.impact === "breaking" ? "var(--color-error)" : result.impact === "high" ? "var(--color-warning)" : "var(--color-success)"} />
         <StatCard label="Changes" value={result.changes.length} />
       </div>
-      {result.summary.length > 0 && (
-        <div className="alert alert-info mb-4">
-          <ul style={{ margin: 0, paddingLeft: 16, fontSize: "0.875rem" }}>
-            {result.summary.map((s, i) => <li key={i}>{s}</li>)}
-          </ul>
-        </div>
-      )}
+      <div className="alert alert-info mb-4">
+        <strong>Summary:</strong> {result.summary.total} change{result.summary.total !== 1 ? "s" : ""} detected
+        ({result.summary.breaking} breaking, {result.summary.high} high, {result.summary.medium} medium, {result.summary.low} low).
+      </div>
       <table className="results-table">
-        <thead><tr><th>Type</th><th>Impact</th><th>Description</th><th>Path</th></tr></thead>
+        <thead><tr><th>Type</th><th>Impact</th><th>Message</th><th>Path</th></tr></thead>
         <tbody>
-          {result.changes.map((c, i) => (
+          {result.changes.map((c: BehavioralChange, i: number) => (
             <tr key={i}>
               <td style={{ fontSize: "0.8125rem" }}>{c.type}</td>
               <td><span className={`badge ${c.impact === "breaking" || c.impact === "high" ? "badge-error" : c.impact === "medium" ? "badge-warning" : "badge-info"}`}>{c.impact}</span></td>
-              <td style={{ fontSize: "0.8125rem" }}>{c.description}</td>
+              <td style={{ fontSize: "0.8125rem" }}>{c.message}</td>
               <td className="mono" style={{ fontSize: "0.8125rem" }}>{c.path}</td>
             </tr>
           ))}
