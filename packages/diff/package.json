@@ -1,10 +1,7 @@
 {
-  "name": "@agentspec/cli",
+  "name": "@agentspec/diff",
   "version": "0.1.0",
   "type": "module",
-  "bin": {
-    "agentspec": "./dist/bin/agentspec.js"
-  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -18,11 +15,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@agentspec/linter": "workspace:*",
-    "@agentspec/parser": "workspace:*",
     "@agentspec/spec": "workspace:*",
-    "@agentspec/test-runner": "workspace:*",
-    "@agentspec/diff": "workspace:*",
-    "commander": "^14.0.3"
+    "@agentspec/parser": "workspace:*"
   }
 }

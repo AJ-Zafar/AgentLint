@@ -10,6 +10,7 @@ This project is infrastructure for instruction engineering, not a chatbot. All c
 - `@agentspec/parser` - Loads `.agentspec.yaml` files and returns typed documents.
 - `@agentspec/linter` - Finds common instruction-engineering issues.
 - `@agentspec/test-runner` - Runs deterministic local test scenarios without LLM calls.
+- `@agentspec/diff` - Reports behavioral impact between AgentSpec files.
 - `@agentspec/cli` - Commander-based CLI exposing `validate`, `lint`, `test`, and `diff`.
 
 ## Commands
@@ -24,6 +25,10 @@ pnpm agentspec lint examples/customer-support.agentspec.yaml
 pnpm agentspec test examples/customer-support.agentspec.yaml
 pnpm agentspec diff examples/customer-support.agentspec.yaml examples/copilot-studio-agent.agentspec.yaml
 ```
+
+## Behavioral diffs
+
+`agentspec diff old.yaml new.yaml` compares two AgentSpec files by behavior rather than raw YAML structure. It detects changes to goals, do/do_not instructions, tools, tool risk, route triggers, fallback routing, escalation conditions, handoff destinations, and tests. Each change is classified as low, medium, high, or breaking impact. Use `--json` for machine-readable output.
 
 ## Deterministic tests
 

@@ -1,0 +1,81 @@
+agent:
+  name: Diff Fixture Agent
+  description: Baseline spec for behavioral diff tests.
+  version: 1.0.0
+  owner: qa
+  domain: diff-fixtures
+persona:
+  role: Support router
+  tone: calm
+  verbosity: concise
+  style_rules:
+    - Keep answers short.
+instructions:
+  primary_goal: Route support requests using approved paths.
+  secondary_goals:
+    - Preserve privacy.
+  do:
+    - Use declared tools only.
+    - Explain handoff reasons.
+  do_not:
+    - Do not expose secrets.
+    - Do not approve refunds.
+constraints:
+  safety:
+    - Escalate safety concerns to human_support.
+  privacy:
+    - Never expose protected data.
+  compliance:
+    - Follow refund policy.
+  escalation:
+    - Fallback to human_support when ownership is unclear.
+  data_access:
+    - Only read approved account fields.
+tools:
+  - name: account_lookup
+    description: Reads account status.
+    allowed_operations:
+      - read_account
+    forbidden_operations:
+      - write_refund
+    requires_auth: true
+    risk_level: low
+  - name: refund_approval
+    description: Requests refund approval.
+    allowed_operations:
+      - request_refund_approval
+    forbidden_operations: []
+    requires_auth: true
+    risk_level: medium
+routes:
+  - name: billing_support
+    description: Handles billing issues.
+    triggers:
+      - invoice
+      - refund
+    target: tool:account_lookup
+    priority: 10
+  - name: fallback_human_support
+    description: Fallback route for unclear ownership.
+    triggers:
+      - fallback
+      - unclear
+    target: handoff:human_support
+    priority: 100
+handoffs:
+  - name: human_support
+    condition: Ownership unclear or policy exception.
+    destination: queue:human-support
+    required_context:
+      - account_id
+      - request_summary
+tests:
+  - name: billing route
+    input: Can I get a refund for my invoice?
+    expected_route: billing_support
+    expected_handoff: human_support
+    expected_tool_calls:
+      - account_lookup
+    forbidden_tool_calls: []
+    assertions:
+      - route is billing_support

@@ -134,16 +134,38 @@ describe("agentspec CLI", () => {
     expect(result.stdout).toContain('Actual: "billing_support"');
   });
 
-  it("diffs two AgentSpec YAML files", async () => {
+  it("diffs two AgentSpec YAML files with a behavioral report", async () => {
     const oldPath = await writeFixture("old.agentspec.yaml", validYaml);
     const newPath = await writeFixture(
       "new.agentspec.yaml",
-      validYaml.replace("Customer Support Agent", "Customer Care Agent")
+      validYaml
+        .replace("Classify support requests and choose an approved route.", "Resolve support requests automatically when confidence is high.")
+        .replace("risk_level: medium", "risk_level: high")
+        .replace("- refund", "- subscription")
     );
 
     const result = await runCli(["diff", oldPath, newPath]);
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("agent.name");
+    expect(result.stdout).toContain("AgentSpec Behavioral Diff");
+    expect(result.stdout).toContain("Overall impact: high");
+    expect(result.stdout).toContain("changed-primary-goal");
+    expect(result.stdout).toContain("increased-tool-risk");
+    expect(result.stdout).toContain("changed-route-triggers");
+  });
+
+  it("supports JSON diff output", async () => {
+    const oldPath = await writeFixture("old-json.agentspec.yaml", validYaml);
+    const newPath = await writeFixture(
+      "new-json.agentspec.yaml",
+      validYaml.replace("Classify support requests and choose an approved route.", "Resolve support requests automatically when confidence is high.")
+    );
+
+    const result = await runCli(["diff", oldPath, newPath, "--json"]);
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(parsed.impact).toBe("high");
+    expect(parsed.changes[0]).toMatchObject({ type: "changed-primary-goal", impact: "high" });
   });
 });

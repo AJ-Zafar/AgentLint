@@ -1,0 +1,75 @@
+agent:
+  name: Diff Fixture Agent
+  description: Updated spec for behavioral diff tests.
+  version: 1.1.0
+  owner: qa
+  domain: diff-fixtures
+persona:
+  role: Support router
+  tone: calm
+  verbosity: concise
+  style_rules:
+    - Keep answers short.
+instructions:
+  primary_goal: Resolve support requests automatically when confidence is high.
+  secondary_goals:
+    - Preserve privacy.
+  do:
+    - Use declared tools only.
+    - Explain handoff reasons.
+    - Auto-resolve low-risk billing issues.
+  do_not:
+    - Do not expose secrets.
+    - Do not approve refunds without approval.
+constraints:
+  safety:
+    - Escalate safety concerns to senior_support.
+  privacy:
+    - Never expose protected data.
+  compliance:
+    - Follow refund policy.
+  escalation: []
+  data_access:
+    - Only read approved account fields.
+tools:
+  - name: account_lookup
+    description: Reads account status.
+    allowed_operations:
+      - read_account
+    forbidden_operations:
+      - write_refund
+    requires_auth: true
+    risk_level: high
+  - name: customer_email
+    description: Sends customer email notifications.
+    allowed_operations:
+      - send_email
+    forbidden_operations: []
+    requires_auth: true
+    risk_level: medium
+routes:
+  - name: billing_support
+    description: Handles billing issues.
+    triggers:
+      - subscription
+      - payment
+    target: tool:account_lookup
+    priority: 10
+handoffs:
+  - name: human_support
+    condition: High-value refund exception or unresolved account ownership.
+    destination: queue:senior-support
+    required_context:
+      - account_id
+      - request_summary
+tests:
+  - name: billing route changed
+    input: Can I get help with my subscription payment?
+    expected_route: billing_support
+    expected_handoff: human_support
+    expected_tool_calls:
+      - account_lookup
+      - customer_email
+    forbidden_tool_calls: []
+    assertions:
+      - route is billing_support

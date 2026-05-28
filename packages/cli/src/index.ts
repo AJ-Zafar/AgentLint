@@ -2,6 +2,7 @@ import { Command, CommanderError } from "commander";
 import { parseAgentSpecFile } from "@agentspec/parser";
 import { lintAgentSpec } from "@agentspec/linter";
 import { runAgentSpecTests, type TestRunResult } from "@agentspec/test-runner";
+import { diffAgentSpecs, type BehavioralDiffResult } from "@agentspec/diff";
 
 export type CliResult = {
   exitCode: number;
@@ -71,19 +72,13 @@ export function createCli(state: CliState): Command {
     .command("diff")
     .argument("<oldFile>", "Original AgentSpec YAML file")
     .argument("<newFile>", "Updated AgentSpec YAML file")
-    .description("Show deterministic structural differences between two AgentSpec YAML files.")
-    .action(async (oldFile: string, newFile: string) => {
+    .option("--json", "Emit machine-readable JSON output")
+    .description("Report behavioral impact between two AgentSpec YAML files.")
+    .action(async (oldFile: string, newFile: string, options: { json?: boolean }) => {
       const [oldSpec, newSpec] = await Promise.all([parseAgentSpecFile(oldFile), parseAgentSpecFile(newFile)]);
-      const changes = diffValues(oldSpec.document, newSpec.document);
+      const result = diffAgentSpecs(oldSpec.document, newSpec.document);
 
-      if (changes.length === 0) {
-        state.stdout.push("No changes\n");
-        return;
-      }
-
-      for (const change of changes) {
-        state.stdout.push(`${change.path}: ${formatValue(change.before)} -> ${formatValue(change.after)}\n`);
-      }
+      state.stdout.push(options.json ? `${JSON.stringify(result, null, 2)}\n` : formatBehavioralDiff(result));
     });
 
   return program;
@@ -183,6 +178,41 @@ function formatTestRun(result: TestRunResult): string {
 
 function formatList(values: string[]): string {
   return values.length === 0 ? "none" : values.join(", ");
+}
+
+function formatBehavioralDiff(result: BehavioralDiffResult): string {
+  const lines: string[] = [
+    "AgentSpec Behavioral Diff",
+    `Overall impact: ${result.impact}`,
+    `Summary: ${result.summary.total} changes (${result.summary.breaking} breaking, ${result.summary.high} high, ${result.summary.medium} medium, ${result.summary.low} low)`
+  ];
+
+  if (result.changes.length === 0) {
+    lines.push("", "No behavioral changes detected.");
+    return `${lines.join("\n")}\n`;
+  }
+
+  const impacts = ["breaking", "high", "medium", "low"] as const;
+  for (const impact of impacts) {
+    const changes = result.changes.filter((change) => change.impact === impact);
+    if (changes.length === 0) {
+      continue;
+    }
+
+    lines.push("", `${titleCase(impact)} impact (${changes.length})`);
+    for (const change of changes) {
+      lines.push(`  - ${change.type} [${change.path}]`);
+      lines.push(`    ${change.message}`);
+      lines.push(`    Before: ${formatValue(change.before)}`);
+      lines.push(`    After: ${formatValue(change.after)}`);
+    }
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+function titleCase(value: string): string {
+  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`;
 }
 
 type DiffChange = {

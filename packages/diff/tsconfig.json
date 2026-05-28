@@ -3,14 +3,11 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "tsBuildInfoFile": "./cli.tsbuildinfo"
+    "tsBuildInfoFile": "./diff.tsbuildinfo"
   },
   "references": [
     { "path": "../spec" },
-    { "path": "../parser" },
-    { "path": "../linter" },
-    { "path": "../test-runner" },
-    { "path": "../diff" }
+    { "path": "../parser" }
   ],
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]
