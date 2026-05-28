@@ -35,6 +35,9 @@ importers:
       '@agentspec/diff':
         specifier: workspace:*
         version: link:../diff
+      '@agentspec/grammar':
+        specifier: workspace:*
+        version: link:../grammar
       '@agentspec/linter':
         specifier: workspace:*
         version: link:../linter
@@ -74,6 +77,12 @@ importers:
       '@agentspec/parser':
         specifier: workspace:*
         version: link:../parser
+      '@agentspec/spec':
+        specifier: workspace:*
+        version: link:../spec
+
+  packages/grammar:
+    dependencies:
       '@agentspec/spec':
         specifier: workspace:*
         version: link:../spec

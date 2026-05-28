@@ -19,6 +19,16 @@ export type JsonSchema = {
 
 export type AgentSpecRiskLevel = "low" | "medium" | "high" | "critical";
 
+export type AgentConditionExpression =
+  | string
+  | { all: AgentConditionExpression[] }
+  | { any: AgentConditionExpression[] }
+  | { not: AgentConditionExpression };
+
+export type AgentSpecPrecedence = {
+  routes?: string[];
+};
+
 export type AgentSpecAgent = {
   name: string;
   description: string;
@@ -47,6 +57,7 @@ export type AgentSpecConstraints = {
   compliance: string[];
   escalation: string[];
   data_access: string[];
+  evaluation?: AgentConditionExpression;
 };
 
 export type AgentSpecTool = {
@@ -64,6 +75,8 @@ export type AgentSpecRoute = {
   triggers: string[];
   target: string;
   priority: number;
+  conditions?: AgentConditionExpression;
+  depends_on?: string[];
 };
 
 export type AgentSpecHandoff = {
@@ -91,6 +104,7 @@ export type AgentSpecDocument = {
   tools: AgentSpecTool[];
   routes: AgentSpecRoute[];
   handoffs: AgentSpecHandoff[];
+  precedence?: AgentSpecPrecedence;
   tests?: AgentSpecTest[];
 };
 
@@ -115,6 +129,15 @@ const linterCheckedString = z.string();
 const nonEmptyStringArray = z.array(nonEmptyString);
 
 export const riskLevelSchema = z.enum(["low", "medium", "high", "critical"]);
+
+export const conditionExpressionSchema: z.ZodType<AgentConditionExpression> = z.lazy(() =>
+  z.union([
+    nonEmptyString,
+    z.strictObject({ all: z.array(conditionExpressionSchema) }),
+    z.strictObject({ any: z.array(conditionExpressionSchema) }),
+    z.strictObject({ not: conditionExpressionSchema })
+  ])
+);
 
 export const agentSpecSchema = z.strictObject({
   agent: z.strictObject({
@@ -141,7 +164,8 @@ export const agentSpecSchema = z.strictObject({
     privacy: nonEmptyStringArray,
     compliance: nonEmptyStringArray,
     escalation: nonEmptyStringArray,
-    data_access: nonEmptyStringArray
+    data_access: nonEmptyStringArray,
+    evaluation: conditionExpressionSchema.optional()
   }),
   tools: z.array(
     z.strictObject({
@@ -159,7 +183,9 @@ export const agentSpecSchema = z.strictObject({
       description: nonEmptyString,
       triggers: nonEmptyStringArray,
       target: nonEmptyString,
-      priority: z.number().int().min(0)
+      priority: z.number().int().min(0),
+      conditions: conditionExpressionSchema.optional(),
+      depends_on: z.array(nonEmptyString).optional()
     })
   ),
   handoffs: z.array(
@@ -170,6 +196,7 @@ export const agentSpecSchema = z.strictObject({
       required_context: z.array(nonEmptyString)
     })
   ),
+  precedence: z.strictObject({ routes: z.array(nonEmptyString).optional() }).optional(),
   tests: z
     .array(
       z.strictObject({
@@ -193,6 +220,14 @@ const booleanSchema = (): JsonSchema => ({ type: "boolean" });
 const integerSchema = (minimum = 0): JsonSchema => ({ type: "integer", minimum });
 const stringArraySchema = (): JsonSchema => ({ type: "array", items: stringSchema() });
 const enumSchema = (values: string[]): JsonSchema => ({ type: "string", enum: values });
+const conditionExpressionJsonSchema = (): JsonSchema => ({
+  anyOf: [
+    stringSchema(),
+    objectSchema({ all: { type: "array", items: { $ref: "#/$defs/conditionExpression" } } }),
+    objectSchema({ any: { type: "array", items: { $ref: "#/$defs/conditionExpression" } } }),
+    objectSchema({ not: { $ref: "#/$defs/conditionExpression" } })
+  ]
+});
 
 function objectSchema(properties: SchemaProperties, required = Object.keys(properties)): JsonSchema {
   return {
@@ -217,6 +252,9 @@ export function generateAgentSpecJsonSchema(): JsonSchema {
     type: "object",
     required: ["agent", "persona", "instructions", "constraints", "tools", "routes", "handoffs"],
     additionalProperties: false,
+    $defs: {
+      conditionExpression: conditionExpressionJsonSchema()
+    },
     properties: {
       agent: objectSchema({
         name: stringSchema(),
@@ -242,8 +280,9 @@ export function generateAgentSpecJsonSchema(): JsonSchema {
         privacy: stringArraySchema(),
         compliance: stringArraySchema(),
         escalation: stringArraySchema(),
-        data_access: stringArraySchema()
-      }),
+        data_access: stringArraySchema(),
+        evaluation: conditionExpressionJsonSchema()
+      }, ["safety", "privacy", "compliance", "escalation", "data_access"]),
       tools: arrayOf(
         objectSchema({
           name: stringSchema(),
@@ -260,8 +299,10 @@ export function generateAgentSpecJsonSchema(): JsonSchema {
           description: stringSchema(),
           triggers: stringArraySchema(),
           target: stringSchema(),
-          priority: integerSchema(0)
-        })
+          priority: integerSchema(0),
+          conditions: conditionExpressionJsonSchema(),
+          depends_on: stringArraySchema()
+        }, ["name", "description", "triggers", "target", "priority"])
       ),
       handoffs: arrayOf(
         objectSchema({
@@ -271,6 +312,7 @@ export function generateAgentSpecJsonSchema(): JsonSchema {
           required_context: stringArraySchema()
         })
       ),
+      precedence: objectSchema({ routes: stringArraySchema() }, []),
       tests: arrayOf(
         objectSchema(
           {

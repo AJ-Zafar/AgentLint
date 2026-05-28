@@ -74,3 +74,12 @@ Generates an experimental Microsoft Copilot Studio implementation plan in markdo
 - `lint` exits non-zero when lint issues are found.
 - `test` exits non-zero when tests fail.
 - `diff` currently reports changes but does not fail solely because changes exist.
+
+## `graph`
+
+```bash
+pnpm agentlint graph ./file.agentspec.yaml
+pnpm agentlint graph ./file.agentspec.yaml --json
+```
+
+Compiles a spec into an internal behaviour graph. The graph command validates structured condition expressions, route dependencies, precedence definitions and unreachable branches.

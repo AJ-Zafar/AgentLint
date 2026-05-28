@@ -200,6 +200,26 @@ describe("agentspec CLI", () => {
   });
 
 
+
+  it("prints a compiled behaviour graph using the agentlint alias", async () => {
+    const filePath = await writeFixture(
+      "graph.agentspec.yaml",
+      validYaml.replace(
+        "priority: 10",
+        "priority: 10\n    conditions:\n      all:\n        - intent == refund\n        - authenticated == true\n        - amount < 50"
+      )
+    );
+
+    const result = await runCli(["graph", filePath, "--json"], "agentlint");
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(parsed.command).toBe("graph");
+    expect(parsed.file).toBe(filePath);
+    expect(parsed.diagnostics).toEqual([]);
+    expect(parsed.graph.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ id: "route:billing_support" })]));
+  });
+
   it("generates a Copilot Studio implementation plan", async () => {
     const result = await runCli(["copilot-plan", "examples/copilot-studio-agent.agentspec.yaml"]);
 

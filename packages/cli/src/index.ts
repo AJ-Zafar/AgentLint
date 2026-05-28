@@ -3,6 +3,7 @@ import { AgentSpecParseError, parseAgentSpecFile, type ParsedAgentSpec } from "@
 import { lintAgentSpec } from "@agentspec/linter";
 import { runAgentSpecTests, type TestRunResult } from "@agentspec/test-runner";
 import { diffAgentSpecs, type BehavioralDiffResult } from "@agentspec/diff";
+import { compileAgentSpecGraph, type GraphCompilationResult } from "@agentspec/grammar";
 import { convertAgentSpecToCopilotStudioPlan } from "@agentspec/copilot-studio";
 import { auditCopilotStudioSolution, type CopilotStudioAuditReport } from "@agentspec/copilot-studio-audit";
 
@@ -18,11 +19,11 @@ type CliState = {
   stderr: string[];
 };
 
-export function createCli(state: CliState): Command {
+export function createCli(state: CliState, programName = "agentspec"): Command {
   const program = new Command();
 
   program
-    .name("agentspec")
+    .name(programName)
     .description("Local-first tooling for AI agent instruction specifications.")
     .exitOverride()
     .configureOutput({
@@ -90,6 +91,25 @@ export function createCli(state: CliState): Command {
 
       state.stdout.push(options.json ? jsonLine(payload) : formatTestRun(result));
       if (result.summary.failed > 0) {
+        state.exitCode = 1;
+      }
+    });
+
+  program
+    .command("graph")
+    .argument("<file>", "Agent Lint YAML file")
+    .option("--json", "Emit machine-readable JSON output")
+    .description("Compile an Agent Lint spec into an internal behaviour graph.")
+    .action(async (file: string, options: { json?: boolean }) => {
+      const parsed = await parseForCommand(file, state, "graph", options.json);
+      if (!parsed) {
+        return;
+      }
+
+      const result = compileAgentSpecGraph(parsed.document);
+      const payload = { command: "graph", file, graph: result.graph, diagnostics: result.diagnostics };
+      state.stdout.push(options.json ? jsonLine(payload) : formatGraph(result));
+      if (result.diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
         state.exitCode = 1;
       }
     });
@@ -212,13 +232,13 @@ function formatLintIssues(issues: Array<{ severity: string; ruleId: string; path
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
-export async function runCli(args: string[]): Promise<CliResult> {
+export async function runCli(args: string[], programName = "agentspec"): Promise<CliResult> {
   const state: CliState = {
     exitCode: 0,
     stdout: [],
     stderr: []
   };
-  const program = createCli(state);
+  const program = createCli(state, programName);
 
   try {
     await program.parseAsync(args, { from: "user" });
@@ -281,6 +301,28 @@ function formatTestRun(result: TestRunResult): string {
 
 function formatList(values: string[]): string {
   return values.length === 0 ? "none" : values.join(", ");
+}
+
+function formatGraph(result: GraphCompilationResult): string {
+  const lines = [
+    "Agent Lint Behaviour Graph",
+    `Nodes: ${result.graph.nodes.length}`,
+    `Edges: ${result.graph.edges.length}`,
+    `Precedence: ${formatList(result.graph.precedence)}`,
+    "",
+    "Nodes",
+    ...result.graph.nodes.map((node) => `  - ${node.id} (${node.kind})`),
+    "",
+    "Edges",
+    ...result.graph.edges.map((edge) => `  - ${edge.from} -> ${edge.to}${edge.label ? ` [${edge.label}]` : ""}`),
+    ""
+  ];
+
+  if (result.diagnostics.length > 0) {
+    lines.push("Diagnostics", ...result.diagnostics.map((diagnostic) => `  - ${diagnostic.severity} ${diagnostic.code} [${diagnostic.path}]: ${diagnostic.message}`), "");
+  }
+
+  return `${lines.join("\n").trimEnd()}\n`;
 }
 
 function formatCopilotAudit(report: CopilotStudioAuditReport): string {

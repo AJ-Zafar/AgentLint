@@ -45,6 +45,7 @@ The current workspace includes:
 - `@agentspec/linter`: rule-based linter with documented rule metadata
 - `@agentspec/test-runner`: deterministic local route, handoff, tool and assertion checks
 - `@agentspec/diff`: behavioural diff engine for comparing instruction specs
+- `@agentspec/grammar`: structured condition grammar and behaviour graph compilation
 - `@agentspec/cli`: CLI commands for validate, lint, test, diff, Copilot planning and Copilot audit
 - `agentspec-vscode`: VS Code extension package for diagnostics and current-file commands
 - `@agentspec/copilot-studio`: experimental markdown implementation plan mapper for Copilot Studio
@@ -231,6 +232,15 @@ pnpm agentspec diff ./old.agentspec.yaml ./new.agentspec.yaml --json
 ```
 
 Reports behavioural impact rather than raw line changes. The implemented diff detects changed goals, changed `do` and `do_not` instructions, added or removed tools, increased tool risk, changed route triggers, removed fallback behaviour, changed escalation conditions, changed handoff destinations and changed tests.
+
+### Behaviour graph
+
+```bash
+pnpm agentlint graph ./file.agentspec.yaml
+pnpm agentlint graph ./file.agentspec.yaml --json
+```
+
+Compiles a spec into an internal behaviour graph, including route conditions, route dependencies, targets and precedence. The grammar layer validates invalid operators, circular dependencies, unreachable branches and conflicting precedence definitions.
 
 ### Copilot Studio plan
 
