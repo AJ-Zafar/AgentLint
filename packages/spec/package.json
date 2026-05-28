@@ -16,5 +16,16 @@
   },
   "dependencies": {
     "zod": "^4.4.3"
-  }
+  },
+  "description": "TypeScript types, Zod validation and JSON schema generation for AgentSpec.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AJ-Zafar/AgentLint.git",
+    "directory": "packages/spec"
+  },
+  "bugs": {
+    "url": "https://github.com/AJ-Zafar/AgentLint/issues"
+  },
+  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme"
 }

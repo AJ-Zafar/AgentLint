@@ -4,6 +4,10 @@ title: Roadmap
 
 # Roadmap
 
+## Status
+
+AgentSpec is experimental. The roadmap is intended to make the project more useful for real-world instruction engineering while keeping the core tooling local-first and deterministic.
+
 AgentSpec is early-stage infrastructure. The roadmap is intentionally practical and focused on improving local assurance before adding platform-specific integrations.
 
 ## Near term

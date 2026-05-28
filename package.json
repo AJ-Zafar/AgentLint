@@ -25,5 +25,24 @@
     "vite": "^8.0.14",
     "vitepress": "^1.6.4",
     "vitest": "^4.1.7"
-  }
+  },
+  "description": "Open-source specification, linter and test framework for AI agent instructions.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AJ-Zafar/AgentLint.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AJ-Zafar/AgentLint/issues"
+  },
+  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme",
+  "keywords": [
+    "ai",
+    "agents",
+    "instructions",
+    "linting",
+    "testing",
+    "yaml",
+    "specification"
+  ]
 }

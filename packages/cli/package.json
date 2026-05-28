@@ -25,5 +25,16 @@
     "@agentspec/diff": "workspace:*",
     "@agentspec/copilot-studio": "workspace:*",
     "commander": "^14.0.3"
-  }
+  },
+  "description": "Command-line interface for validating, linting, testing and diffing AgentSpec files.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AJ-Zafar/AgentLint.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/AJ-Zafar/AgentLint/issues"
+  },
+  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme"
 }

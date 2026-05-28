@@ -17,5 +17,16 @@
   "dependencies": {
     "@agentspec/spec": "workspace:*",
     "@agentspec/parser": "workspace:*"
-  }
+  },
+  "description": "Behavioural diff engine for comparing AgentSpec files.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AJ-Zafar/AgentLint.git",
+    "directory": "packages/diff"
+  },
+  "bugs": {
+    "url": "https://github.com/AJ-Zafar/AgentLint/issues"
+  },
+  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme"
 }

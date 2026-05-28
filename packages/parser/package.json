@@ -17,5 +17,16 @@
   "dependencies": {
     "@agentspec/spec": "workspace:*",
     "yaml": "^2.9.0"
-  }
+  },
+  "description": "YAML parser and validation wrapper for AgentSpec files.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AJ-Zafar/AgentLint.git",
+    "directory": "packages/parser"
+  },
+  "bugs": {
+    "url": "https://github.com/AJ-Zafar/AgentLint/issues"
+  },
+  "homepage": "https://github.com/AJ-Zafar/AgentLint#readme"
 }

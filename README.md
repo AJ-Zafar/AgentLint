@@ -1,10 +1,16 @@
 # AgentSpec
 
+[![Status: Experimental](https://img.shields.io/badge/status-experimental-orange.svg)](#status-experimental) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![CI](https://github.com/AJ-Zafar/AgentLint/actions/workflows/ci.yml/badge.svg)](https://github.com/AJ-Zafar/AgentLint/actions/workflows/ci.yml) [![Docs](https://img.shields.io/badge/docs-VitePress-42b883.svg)](docs/)
+
 AgentSpec is an open-source specification, linter and test framework for AI agent instructions.
 
 It provides a structured YAML format for describing agent behaviour, plus local tooling for validation, linting, deterministic test scenarios, behavioural diffs, editor diagnostics and implementation planning.
 
 AgentSpec is not a chatbot and it does not call live LLMs. It is infrastructure for AI instruction engineering.
+
+## Status: experimental
+
+AgentSpec is early-stage open-source infrastructure. The YAML format, rule set and package boundaries are expected to evolve as real-world usage grows. It is suitable for experimentation, design review and local CI checks, but teams should review changes carefully before relying on it for production governance.
 
 ## Why AgentSpec exists
 
@@ -36,6 +42,28 @@ AgentSpec currently includes:
 - an experimental Copilot Studio planning mapper
 
 Everything is local-first. No Microsoft APIs, model APIs or external services are called by the core tooling.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  Spec[AgentSpec YAML] --> Parser[@agentspec/parser]
+  Parser --> Schema[@agentspec/spec\nTypes + Zod + JSON Schema]
+  Parser --> Linter[@agentspec/linter]
+  Parser --> Runner[@agentspec/test-runner]
+  Parser --> Diff[@agentspec/diff]
+  Parser --> Copilot[@agentspec/copilot-studio]
+  Linter --> CLI[@agentspec/cli]
+  Runner --> CLI
+  Diff --> CLI
+  Copilot --> CLI
+  Linter --> VSCode[agentspec-vscode]
+  Parser --> VSCode
+  CLI --> CI[CI/CD governance gates]
+  CLI --> Docs[VitePress docs + examples]
+```
+
+The core packages are local-first. The CLI and VS Code extension reuse the parser, schema and linter packages rather than duplicating validation logic.
 
 ## Documentation site
 
@@ -334,6 +362,20 @@ Longer-term areas being considered:
 - richer simulation adapters
 - compatibility reports for agent platforms
 - hosted collaboration, review and governance workflows
+
+## Roadmap snapshot
+
+AgentSpec is focused on practical local assurance first:
+
+- stabilise the YAML format and generated JSON schema
+- improve YAML source mapping for editor diagnostics
+- expand lint rules and configurable policy packs
+- strengthen deterministic test assertions
+- improve CI/CD and pull request reporting
+- add VS Code quick fixes for common issues
+- develop platform planning adapters without introducing API side effects into core packages
+
+See the docs site roadmap for more detail.
 
 ## Open-core positioning
 
