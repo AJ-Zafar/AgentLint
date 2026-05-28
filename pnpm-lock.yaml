@@ -47,6 +47,9 @@ importers:
       '@agentspec/parser':
         specifier: workspace:*
         version: link:../parser
+      '@agentspec/replay':
+        specifier: workspace:*
+        version: link:../replay
       '@agentspec/spec':
         specifier: workspace:*
         version: link:../spec
@@ -116,6 +119,15 @@ importers:
       yaml:
         specifier: ^2.9.0
         version: 2.9.0
+
+  packages/replay:
+    dependencies:
+      '@agentspec/grammar':
+        specifier: workspace:*
+        version: link:../grammar
+      '@agentspec/spec':
+        specifier: workspace:*
+        version: link:../spec
 
   packages/spec:
     dependencies:

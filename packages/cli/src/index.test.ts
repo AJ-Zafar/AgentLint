@@ -223,6 +223,25 @@ describe("agentspec CLI", () => {
 
 
 
+
+  it("replays a named scenario through the behaviour graph", async () => {
+    const filePath = await writeFixture(
+      "replay.agentspec.yaml",
+      validYaml.replace(
+        "tests:\n  - name: billing refund route",
+        "scenarios:\n  - name: angry-refund-user\n    input: I am angry and want a refund of 75\n    context:\n      intent: refund\n      authenticated: true\n      amount: 75\n      sentiment: angry\ntests:\n  - name: billing refund route"
+      )
+    );
+
+    const result = await runCli(["replay", filePath, "--scenario", "angry-refund-user"], "agentlint");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Agent Lint Scenario Replay");
+    expect(result.stdout).toContain("Decision path");
+    expect(result.stdout).toContain("Selected route: billing_support");
+    expect(result.stdout).toContain("Tool eligibility checks");
+  });
+
   it("compiles loose instructions into Agent Lint YAML", async () => {
     const result = await runCli(["compile", "packages/compiler/fixtures/support-instructions.md"], "agentlint");
 

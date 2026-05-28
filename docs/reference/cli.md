@@ -107,3 +107,12 @@ pnpm agentlint simulate-diff ./old.agentspec.yaml ./new.agentspec.yaml --json
 ```
 
 Runs deterministic scenario generation over two specs and reports behavioural simulation changes, including route selection, escalation frequency, tool eligibility, fallback invocation, constraint precedence, impacted routes and likely regression areas.
+
+## `replay`
+
+```bash
+pnpm agentlint replay ./agent.agentspec.yaml --scenario angry-refund-user
+pnpm agentlint replay ./agent.agentspec.yaml --scenario angry-refund-user --json
+```
+
+Runs deterministic path evaluation through the behaviour graph for a named scenario and reports the decision path, triggered constraints, selected route, tool eligibility checks, handoff reasoning and execution trace.

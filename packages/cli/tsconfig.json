@@ -12,6 +12,7 @@
     { "path": "../test-runner" },
     { "path": "../diff" },
     { "path": "../grammar" },
+    { "path": "../replay" },
     { "path": "../compiler" },
     { "path": "../copilot-studio" },
     { "path": "../copilot-studio-audit" }

@@ -1,0 +1,23 @@
+{
+  "name": "@agentspec/replay",
+  "version": "0.1.0",
+  "description": "Deterministic scenario replay engine for Agent Lint behaviour graphs.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@agentspec/spec": "workspace:*",
+    "@agentspec/grammar": "workspace:*"
+  },
+  "license": "MIT"
+}

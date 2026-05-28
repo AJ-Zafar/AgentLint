@@ -94,6 +94,12 @@ export type AgentSpecHandoff = {
   required_context: string[];
 };
 
+export type AgentSpecScenario = {
+  name: string;
+  input: string;
+  context: Record<string, string | number | boolean>;
+};
+
 export type AgentSpecTest = {
   name: string;
   input: string;
@@ -114,6 +120,7 @@ export type AgentSpecDocument = {
   handoffs: AgentSpecHandoff[];
   precedence?: AgentSpecPrecedence;
   compiler?: AgentSpecCompilerMetadata;
+  scenarios?: AgentSpecScenario[];
   tests?: AgentSpecTest[];
 };
 
@@ -213,6 +220,11 @@ export const agentSpecSchema = z.strictObject({
     inferred_fields: z.array(nonEmptyString),
     warnings: z.array(z.string())
   }).optional(),
+  scenarios: z.array(z.strictObject({
+    name: nonEmptyString,
+    input: nonEmptyString,
+    context: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+  })).optional(),
   tests: z
     .array(
       z.strictObject({
@@ -336,6 +348,11 @@ export function generateAgentSpecJsonSchema(): JsonSchema {
         inferred_fields: stringArraySchema(),
         warnings: { type: "array", items: { type: "string" } }
       }),
+      scenarios: arrayOf(objectSchema({
+        name: stringSchema(),
+        input: stringSchema(),
+        context: { type: "object", additionalProperties: true }
+      })),
       tests: arrayOf(
         objectSchema(
           {

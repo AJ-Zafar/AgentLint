@@ -4,6 +4,7 @@ import { lintAgentSpec } from "@agentspec/linter";
 import { runAgentSpecTests, type TestRunResult } from "@agentspec/test-runner";
 import { diffAgentSpecs, simulateAgentSpecDiff, type BehavioralDiffResult, type SimulatedDiffReport } from "@agentspec/diff";
 import { compileAgentSpecGraph, type GraphCompilationResult } from "@agentspec/grammar";
+import { replayScenario, type ReplayResult } from "@agentspec/replay";
 import { compileInstructionsToAgentSpec } from "@agentspec/compiler";
 import { readFile } from "node:fs/promises";
 import { convertAgentSpecToCopilotStudioPlan } from "@agentspec/copilot-studio";
@@ -99,6 +100,20 @@ export function createCli(state: CliState, programName = "agentspec"): Command {
       if (result.summary.failed > 0) {
         state.exitCode = 1;
       }
+    });
+
+  program
+    .command("replay")
+    .argument("<file>", "Agent Lint YAML file")
+    .requiredOption("--scenario <name>", "Scenario name to replay")
+    .option("--json", "Emit machine-readable JSON output")
+    .description("Replay a named scenario through the behaviour graph.")
+    .action(async (file: string, options: { scenario: string; json?: boolean }) => {
+      const parsed = await parseForCommand(file, state, "replay", options.json);
+      if (!parsed) return;
+      const result = replayScenario(parsed.document, options.scenario);
+      const payload = { command: "replay", file, result };
+      state.stdout.push(options.json ? jsonLine(payload) : formatReplay(result));
     });
 
   program
@@ -474,6 +489,32 @@ function appendFindingList(lines: string[], title: string, values: string[]): vo
     lines.push(`  - ${value}`);
   }
   lines.push("");
+}
+
+function formatReplay(result: ReplayResult): string {
+  const lines = [
+    "Agent Lint Scenario Replay",
+    `Scenario: ${result.scenario}`,
+    `Input: ${result.input}`,
+    `Selected route: ${result.selectedRoute ?? "none"}`,
+    "",
+    "Decision path",
+    ...result.decisionPath.map((item) => `  - ${item}`),
+    "",
+    "Triggered constraints",
+    ...formatObjects(result.triggeredConstraints),
+    "",
+    "Tool eligibility checks",
+    ...result.toolEligibilityChecks.map((check) => `  - ${check.tool}: ${check.eligible ? "eligible" : "not eligible"} (${check.reason})`),
+    "",
+    "Handoff reasoning",
+    `  - ${result.handoffReasoning ?? "none"}`,
+    "",
+    "Trace",
+    ...result.trace.map((step) => `  ${step.step}. ${step.kind} ${step.node}: ${step.result}`),
+    ""
+  ];
+  return `${lines.join("\n").trimEnd()}\n`;
 }
 
 function formatSimulatedDiff(report: SimulatedDiffReport): string {

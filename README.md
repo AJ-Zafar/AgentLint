@@ -252,6 +252,15 @@ pnpm agentspec diff ./old.agentspec.yaml ./new.agentspec.yaml --json
 
 Reports behavioural impact rather than raw line changes. The implemented diff detects changed goals, changed `do` and `do_not` instructions, added or removed tools, increased tool risk, changed route triggers, removed fallback behaviour, changed escalation conditions, changed handoff destinations and changed tests.
 
+### Replay scenario
+
+```bash
+pnpm agentlint replay ./agent.agentspec.yaml --scenario angry-refund-user
+pnpm agentlint replay ./agent.agentspec.yaml --scenario angry-refund-user --json
+```
+
+Runs deterministic path evaluation through the behaviour graph for a named scenario. The report includes the decision path, triggered constraints, selected route, tool eligibility checks, handoff reasoning and a step-by-step execution trace.
+
 ### Compile natural language instructions
 
 ```bash
