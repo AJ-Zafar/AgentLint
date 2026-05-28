@@ -52,7 +52,7 @@ export function YamlWorkspace() {
   return (
     <div className="page-wide">
       <div className="page-header">
-        <div className="flex justify-between items-center">
+        <div className="page-header-row">
           <div>
             <h1>YAML Workspace</h1>
             <p>Edit your Agent Lint specification with live validation and lint feedback.</p>

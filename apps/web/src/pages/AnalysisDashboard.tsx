@@ -132,7 +132,7 @@ export function AnalysisDashboard() {
   return (
     <div className="page-wide">
       <div className="page-header">
-        <div className="flex justify-between items-center">
+        <div className="page-header-row">
           <div>
             <h1>Analysis Dashboard</h1>
             <p>Run the full Agent Lint analysis suite against your specification.</p>
