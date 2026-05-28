@@ -1,0 +1,21 @@
+{
+  "name": "@agentspec/parser",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@agentspec/spec": "workspace:*",
+    "yaml": "^2.9.0"
+  }
+}

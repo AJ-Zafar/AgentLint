@@ -1,0 +1,26 @@
+{
+  "name": "@agentspec/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "agentspec": "./dist/bin/agentspec.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@agentspec/linter": "workspace:*",
+    "@agentspec/parser": "workspace:*",
+    "@agentspec/spec": "workspace:*",
+    "commander": "^14.0.3"
+  }
+}

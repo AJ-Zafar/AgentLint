@@ -1,0 +1,48 @@
+agentspec: "1.0"
+metadata:
+  name: Customer Support Agent
+  version: 0.1.0
+  description: Local deterministic support routing specification.
+agent:
+  id: customer-support
+  description: Handles customer support triage and escalation.
+instructions:
+  system: Resolve customer requests using approved support policies only.
+  goals:
+    - Route billing, refund, and account questions to the correct support path.
+    - Escalate policy exceptions before providing a final answer.
+  constraints:
+    - Never request full payment card numbers, passwords, or secrets.
+    - Only use verified customer account context from declared tools.
+  fallback: If policy coverage or account context is unclear, escalate to human-support.
+routes:
+  - id: billing
+    when: Customer asks about invoices, refunds, subscriptions, or payments.
+    instructions:
+      - Confirm the account identifier before answering.
+      - Summarize the relevant policy and next action.
+    tools:
+      - lookup-account
+    escalateTo: human-support
+tools:
+  - id: lookup-account
+    description: Reads account metadata from a local fixture or deterministic test double.
+    inputSchema:
+      type: object
+      properties:
+        accountId:
+          type: string
+      required:
+        - accountId
+escalations:
+  - id: human-support
+    when: The request requires human approval or the policy does not cover it.
+    target: queue:human-support
+tests:
+  - id: billing-route
+    input: Can you explain why my invoice changed?
+    expect:
+      route: billing
+      escalation: human-support
+      tools:
+        - lookup-account
